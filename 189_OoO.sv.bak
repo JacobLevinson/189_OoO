@@ -1,0 +1,20 @@
+`timescale 1ns/1ps
+module 189_OoO begin
+    reg [7:0] rom [0:3]; // Assuming 8-bit ROM with 4 locations
+
+    initial begin
+        // Read data from file into ROM
+        $readmemh("data.txt", rom);
+
+        // Display contents of ROM
+        for (int i = 0; i < 4; i++) begin
+        $display("rom[%0d] = %h", i, rom[i]);
+        end
+    end
+
+
+
+
+
+
+end
