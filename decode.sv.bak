@@ -1,9 +1,9 @@
 `timescale 1ns/100ps
 
 module decode (
-input clock, 
-input inst_a,
-input inst_b
+clock, 
+inst_a,
+inst_b
 ) begin
 
 input logic clock;
