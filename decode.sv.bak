@@ -4,7 +4,7 @@ module decode (
 clock, 
 inst_a,
 inst_b
-)
+) begin
 
 input logic clock;
 input logic [31:0] inst_a;
@@ -128,7 +128,7 @@ always_comb begin // Generate control signals
 			ALUSrc_a   = 0;
 			RegWrite_a = 0;
 	endcase
-end
+endmodule
 		
 always_comb begin // Generate control signals
 	case (inst_b [6:0]) begin
@@ -168,7 +168,5 @@ always_comb begin // Generate control signals
 			ALUSrc_b   = 0;
 			RegWrite_b = 0;
 	endcase
-end
-
 endmodule
 		
