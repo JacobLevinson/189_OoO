@@ -57,6 +57,8 @@ always_ff @(posedge clk) begin
 		robDispatch.robNum1 <= firstRobFree;
 		robDispatch.pc1 <= dispatchData.inst1.pc;
 		robDispatch.valid1 <= 1;
+		// Now dispatch to reservation station
+
 	end else begin
 		robDispatch.valid1 <= 0;
 	end
@@ -67,6 +69,8 @@ always_ff @(posedge clk) begin
 		robDispatch.robNum2 <= secondRobFree;
 		robDispatch.pc2 <= dispatchData.inst2.pc;
 		robDispatch.valid2 <= 1;
+		// Now dispatch to reservation station
+		
 	end else begin
 		robDispatch.valid2 <= 0;
 	end
