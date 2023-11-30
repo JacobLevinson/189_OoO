@@ -1,4 +1,4 @@
-`timescale 1ns/100ps
+/*`timescale 1ns/100ps
 
 module tb_rename();
 
@@ -49,4 +49,4 @@ end
 
 rename DUT(.*);
 
-endmodule
+endmodule*/

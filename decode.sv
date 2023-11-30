@@ -1,183 +1,168 @@
 `timescale 1ns/100ps
 
+import typedefs::fetch_decode;
+import typedefs::ctrlStruct; // Importing in CUS instead of module header because only 2005 support :(
+import typedefs::instStruct;
 module decode (
-input logic clock,
-input logic [31:0] inst_a,
-input logic [31:0] inst_b
+input logic clk,
+input fetch_decode fd_reg,
+output instStruct dec_ren_reg_a,
+output instStruct dec_ren_reg_b
 );
 
-logic [6:0] opcode_a;
-logic [4:0] rd_a;
-logic [4:0] rs1_a;
-logic [4:0] rs2_a;
-logic [2:0] funct3_a;
-logic [6:0] funct7_a;
-logic [31:0] imm_a;
+// Might be smarter to separate the combinational and sequential logic... oops
 
-logic [6:0] opcode_b;
-logic [4:0] rd_b;
-logic [4:0] rs1_b;
-logic [4:0] rs2_b;
-logic [2:0] funct3_b;
-logic [6:0] funct7_b;
-logic [31:0] imm_b;
-
-always_comb begin 
-	opcode_a = inst_a [6:0];
-	rd_a     = inst_a [11:7];
-	funct3_a = inst_a [14:12];
-	rs1_a    = inst_a [19:15];
-	rs2_a    = inst_a [24:20];
-	funct7_a = inst_a [31:25];
+always_ff @ (posedge clk) begin // Parse instructions
+	dec_ren_reg_a.opcode	<= fd_reg.inst_a [6:0];
+	dec_ren_reg_a.rd		<= fd_reg.inst_a [11:7];
+	dec_ren_reg_a.funct3 <= fd_reg.inst_a [14:12];
+	dec_ren_reg_a.rs1    <= fd_reg.inst_a [19:15];
+	dec_ren_reg_a.rs2    <= fd_reg.inst_a [24:20];
+	dec_ren_reg_a.funct7 <= fd_reg.inst_a [31:25];
 	
-	opcode_b = inst_b [6:0];
-	rd_b     = inst_b [11:7];
-	funct3_b = inst_b [14:12];
-	rs1_b    = inst_b [19:15];
-	rs2_b    = inst_b [24:20];
-	funct7_b = inst_b [31:25];
+	dec_ren_reg_b.opcode <= fd_reg.inst_b [6:0];
+	dec_ren_reg_b.rd 		<= fd_reg.inst_b [11:7];
+	dec_ren_reg_b.funct3 <= fd_reg.inst_b [14:12];
+	dec_ren_reg_b.rs1    <= fd_reg.inst_b [19:15];
+	dec_ren_reg_b.rs2    <= fd_reg.inst_b [24:20];
+	dec_ren_reg_b.funct7 <= fd_reg.inst_b [31:25];
+	
+	dec_ren_reg_a.pc 		<= fd_reg.pc_a; // These are simply passed through
+	dec_ren_reg_b.pc 		<= fd_reg.pc_b;
 end
 
-always_comb begin // ImmGen for inst_a
-	case (inst_a [6:0]) 
-		7'b0010011: begin // I-type (ALU immediate)
-			imm_a[11:0]  = inst_a[31:20];
-			imm_a[31:12] = 'b0;
+// LUT for ImmGen and Control Signals
+localparam i_type = 7'b0010011;
+localparam load 	= 7'b0000011;
+localparam s_type	= 7'b0100011;
+localparam r_type = 7'b0110011;
+
+always_ff @ (posedge clk) begin // ImmGen for inst_a
+	case (fd_reg.inst_a [6:0]) 
+		i_type: begin 
+			dec_ren_reg_a.imm[11:0]		<= fd_reg.inst_a[31:20];
+			dec_ren_reg_a.imm[31:12] 	<= 'b0;
 		end
-		7'b0000011: begin // Load
-			imm_a[11:0]  = inst_a[31:20];
-			imm_a[31:12] = 'b0;
+		load: begin 
+			dec_ren_reg_a.imm[11:0]  	<= fd_reg.inst_a[31:20];
+			dec_ren_reg_a.imm[31:12] 	<= 'b0;
 		end
-		7'b0100011: begin // S-type (Store)
-			imm_a[4:0]   = inst_a[11:7];
-			imm_a[11:5]  = inst_a[31:25];
-			imm_a[31:12] = 'b0;
+		s_type: begin
+			dec_ren_reg_a.imm[4:0]   	<= fd_reg.inst_a[11:7];
+			dec_ren_reg_a.imm[11:5]  	<= fd_reg.inst_a[31:25];
+			dec_ren_reg_a.imm[31:12] 	<= 'b0;
 		end
 		default:
-			imm_a[31:0] = 'b0;
+			dec_ren_reg_a.imm[31:0] 	<= 'b0;
 	endcase
 end
 	
-always_comb begin // ImmGen for inst_b
-	case (inst_a [6:0]) 
-		7'b0010011:  begin // I-type (ALU immediate)
-			imm_b[11:0]  = inst_b[31:20];
-			imm_b[31:12] = 'b0;
+always_ff @ (posedge clk) begin // ImmGen for inst_b
+	case (fd_reg.inst_b [6:0]) 
+		i_type:  begin
+			dec_ren_reg_b.imm[11:0]  	<= fd_reg.inst_b[31:20];
+			dec_ren_reg_b.imm[31:12] 	<= 'b0;
 		end
-		7'b0000011: begin // Load
-			imm_b[11:0]  = inst_b[31:20];
-			imm_b[31:12] = 'b0;
+		load: begin
+			dec_ren_reg_b.imm[11:0]  	<= fd_reg.inst_b[31:20];
+			dec_ren_reg_b.imm[31:12] 	<= 'b0;
 		end
-		7'b0100011: begin // S-type (Store)
-			imm_b[4:0]   = inst_b[11:7];
-			imm_b[11:5]  = inst_b[31:25];
-			imm_b[31:12] = 'b0;
+		s_type: begin
+			dec_ren_reg_b.imm[4:0]   	<= fd_reg.inst_b[11:7];
+			dec_ren_reg_b.imm[11:5]  	<= fd_reg.inst_b[31:25];
+			dec_ren_reg_b.imm[31:12] 	<= 'b0;
 		end
 		default:
-			imm_b[31:0] = 'b0;
+			dec_ren_reg_b.imm[31:0] 	<= 'b0;
 	endcase
 end
 
-logic MemRead_a;
-logic MemtoReg_a;
-logic [1:0] ALUOp_a;
-logic MemWrite_a;
-logic ALUSrc_a;
-logic RegWrite_a;
-
-logic MemRead_b;
-logic MemtoReg_b;
-logic [1:0] ALUOp_b;
-logic MemWrite_b;
-logic ALUSrc_b;
-logic RegWrite_b;
-
-always_comb begin // Generate control signals
-	case (inst_a [6:0]) 
-		7'b0110011: begin // R-type
-			MemRead_a  = 0;
-			MemtoReg_a = 0;
-			ALUOp_a    = 2'b10;
-			MemWrite_a = 0;
-			ALUSrc_a   = 0;
-			RegWrite_a = 1;
+always_ff @ (posedge clk) begin // Generate control signals
+	case (fd_reg.inst_a [6:0]) 
+		r_type: begin 
+			dec_ren_reg_a.control.MemRead 	<= 0;
+			dec_ren_reg_a.control.MemtoReg 	<= 0;
+			dec_ren_reg_a.control.ALUOp    	<= 2'b10;
+			dec_ren_reg_a.control.MemWrite 	<= 0;
+			dec_ren_reg_a.control.ALUSrc   	<= 0;
+			dec_ren_reg_a.control.RegWrite 	<= 1;
 		end
-		7'b0010011: begin // I-type
-			MemRead_a  = 0;
-			MemtoReg_a = 0;
-			ALUOp_a    = 2'b11;
-			MemWrite_a = 0;
-			ALUSrc_a   = 1;
-			RegWrite_a = 1;
+		i_type: begin 
+			dec_ren_reg_a.control.MemRead  	<= 0;
+			dec_ren_reg_a.control.MemtoReg 	<= 0;
+			dec_ren_reg_a.control.ALUOp    	<= 2'b11;
+			dec_ren_reg_a.control.MemWrite 	<= 0;
+			dec_ren_reg_a.control.ALUSrc   	<= 1;
+			dec_ren_reg_a.control.RegWrite 	<= 1;
 		end
-		7'b0000011: begin // Load
-			MemRead_a  = 1;
-			MemtoReg_a = 1;
-			ALUOp_a    = 2'b00;
-			MemWrite_a = 0;
-			ALUSrc_a   = 1;
-			RegWrite_a = 1;
+		load: begin 
+			dec_ren_reg_a.control.MemRead  	<= 1;
+			dec_ren_reg_a.control.MemtoReg 	<= 1;
+			dec_ren_reg_a.control.ALUOp    	<= 2'b00;
+			dec_ren_reg_a.control.MemWrite 	<= 0;
+			dec_ren_reg_a.control.ALUSrc   	<= 1;
+			dec_ren_reg_a.control.RegWrite 	<= 1;
 		end
-		7'b0100011: begin // S-type (store)
-			MemRead_a  = 0;
-			MemtoReg_a = 0;
-			ALUOp_a    = 2'b00;
-			MemWrite_a = 1;
-			ALUSrc_a   = 1;
-			RegWrite_a = 0;
+		s_type: begin 
+			dec_ren_reg_a.control.MemRead  	<= 0;
+			dec_ren_reg_a.control.MemtoReg 	<= 0;
+			dec_ren_reg_a.control.ALUOp    	<= 2'b00;
+			dec_ren_reg_a.control.MemWrite 	<= 1;
+			dec_ren_reg_a.control.ALUSrc   	<= 1;
+			dec_ren_reg_a.control.RegWrite 	<= 0;
 		end
 		default: begin
-			MemRead_a  = 0;
-			MemtoReg_a = 0;
-			ALUOp_a    = 2'b00;
-			MemWrite_a = 0;
-			ALUSrc_a   = 0;
-			RegWrite_a = 0;
+			dec_ren_reg_a.control.MemRead  	<= 0;
+			dec_ren_reg_a.control.MemtoReg 	<= 0;
+			dec_ren_reg_a.control.ALUOp    	<= 2'b00;
+			dec_ren_reg_a.control.MemWrite 	<= 0;
+			dec_ren_reg_a.control.ALUSrc   	<= 0;
+			dec_ren_reg_a.control.RegWrite 	<= 0;
 		end
 	endcase
 end
 		
-always_comb begin // Generate control signals
-	case (inst_b [6:0]) 
-		7'b0110011: begin // R-type
-			MemRead_b  = 0;
-			MemtoReg_b = 0;
-			ALUOp_b    = 2'b10;
-			MemWrite_b = 0;
-			ALUSrc_b   = 0;
-			RegWrite_b = 1;
+always_ff @ (posedge clk) begin // Generate control signals
+	case (fd_reg.inst_b [6:0]) 
+		r_type: begin 
+			dec_ren_reg_b.control.MemRead		<= 0;
+			dec_ren_reg_b.control.MemtoReg	<= 0;
+			dec_ren_reg_b.control.ALUOp		<= 2'b10;
+			dec_ren_reg_b.control.MemWrite	<= 0;
+			dec_ren_reg_b.control.ALUSrc		<= 0;
+			dec_ren_reg_b.control.RegWrite	<= 1;
 		end
-		7'b0010011: begin // I-type
-			MemRead_b  = 0;
-			MemtoReg_b = 0;
-			ALUOp_b    = 2'b11;
-			MemWrite_b = 0;
-			ALUSrc_b   = 1;
-			RegWrite_b = 1;
+		i_type: begin 
+			dec_ren_reg_b.control.MemRead		<= 0;
+			dec_ren_reg_b.control.MemtoReg	<= 0;
+			dec_ren_reg_b.control.ALUOp	   <= 2'b11;
+			dec_ren_reg_b.control.MemWrite	<= 0;
+			dec_ren_reg_b.control.ALUSrc		<= 1;
+			dec_ren_reg_b.control.RegWrite	<= 1;
 		end
-		7'b0000011: begin // Load
-			MemRead_b  = 1;
-			MemtoReg_b = 1;
-			ALUOp_b    = 2'b00;
-			MemWrite_b = 0;
-			ALUSrc_b   = 1;
-			RegWrite_b = 1;
+		load: begin
+			dec_ren_reg_b.control.MemRead		<= 1;
+			dec_ren_reg_b.control.MemtoReg	<= 1;
+			dec_ren_reg_b.control.ALUOp		<= 2'b00;
+			dec_ren_reg_b.control.MemWrite	<= 0;
+			dec_ren_reg_b.control.ALUSrc	   <= 1;
+			dec_ren_reg_b.control.RegWrite	<= 1;
 		end
-		7'b0100011: begin // S-type (store)
-			MemRead_b  = 0;
-			MemtoReg_b = 0;
-			ALUOp_b    = 2'b00;
-			MemWrite_b = 1;
-			ALUSrc_b   = 1;
-			RegWrite_b = 0;
+		s_type: begin 
+			dec_ren_reg_b.control.MemRead		<= 0;
+			dec_ren_reg_b.control.MemtoReg	<= 0;
+			dec_ren_reg_b.control.ALUOp		<= 2'b00;
+			dec_ren_reg_b.control.MemWrite	<= 1;
+			dec_ren_reg_b.control.ALUSrc		<= 1;
+			dec_ren_reg_b.control.RegWrite	<= 0;
 		end
 		default: begin
-			MemRead_b  = 0;
-			MemtoReg_b = 0;
-			ALUOp_b    = 2'b00;
-			MemWrite_b = 0;
-			ALUSrc_b   = 0;
-			RegWrite_b = 0;
+			dec_ren_reg_b.control.MemRead		<= 0;
+			dec_ren_reg_b.control.MemtoReg	<= 0;
+			dec_ren_reg_b.control.ALUOp		<= 2'b00;
+			dec_ren_reg_b.control.MemWrite	<= 0;
+			dec_ren_reg_b.control.ALUSrc		<= 0;
+			dec_ren_reg_b.control.RegWrite	<= 0;
 		end
 	endcase
 end

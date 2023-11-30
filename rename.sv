@@ -1,33 +1,54 @@
 `timescale 1ns/100ps
 
+import typedefs::instStruct;
+import typedefs::dispatchStruct;
 module rename (
 input logic clk,
 input logic reset,
-
-input logic [6:0] opcode_a,
-
-input logic [4:0] rd_a_arch,
-input logic [4:0] rs1_a_arch,
-input logic [4:0] rs2_a_arch,
-
-input logic [6:0] opcode_b,
-
-input logic [4:0] rd_b_arch,
-input logic [4:0] rs1_b_arch,
-input logic [4:0] rs2_b_arch,
-
-output logic [5:0] rd_a_phy,
-output logic [5:0] rs1_a_phy,
-output logic [5:0] rs2_a_phy,
-
-output logic [5:0] rd_b_phy,
-output logic [5:0] rs1_b_phy,
-output logic [5:0] rs2_b_phy
+input instStruct dec_ren_reg_a,
+input instStruct dec_ren_reg_b,
+//input logic [5:0] free_reg_a, // Note: Need to code this logic still
+//input logic [5:0] free_reg_b,
+output dispatchStruct ren_disp_reg_a,
+output dispatchStruct ren_disp_reg_b
 );
 
-parameter i_type 	= 7'b0010011;
-parameter lw 		= 7'b0000011;
-parameter sw 		= 7'b0100011;
+// Local input variables
+logic [6:0] opcode_a;
+logic [4:0] rd_a_arch;
+logic [4:0] rs1_a_arch;
+logic [4:0] rs2_a_arch;
+
+assign opcode_a	= dec_ren_reg_a.opcode;
+assign rd_a_arch	= dec_ren_reg_a.rd;
+assign rs1_a_arch = dec_ren_reg_a.rs1;
+assign rs2_a_arch = dec_ren_reg_a.rs2;
+
+logic [6:0] opcode_b;
+logic [4:0] rd_b_arch;
+logic [4:0] rs1_b_arch;
+logic [4:0] rs2_b_arch;
+
+assign opcode_b	= dec_ren_reg_b.opcode;
+assign rd_b_arch	= dec_ren_reg_b.rd;
+assign rs1_b_arch = dec_ren_reg_b.rs1;
+assign rs2_b_arch = dec_ren_reg_b.rs2;
+
+// Local output variables
+logic [5:0] rd_a_phy;
+logic [5:0] rd_a_phy_old;
+logic [5:0] rs1_a_phy;
+logic [5:0] rs2_a_phy;
+
+logic [5:0] rd_b_phy;
+logic [5:0] rd_b_phy_old;
+logic [5:0] rs1_b_phy;
+logic [5:0] rs2_b_phy;
+
+// Instruction LUT
+localparam i_type	= 7'b0010011;
+localparam lw		= 7'b0000011;
+localparam sw 		= 7'b0100011;
 
 // Declare the register alias table
 logic [5:0] rat [31:0];
@@ -41,13 +62,13 @@ logic [5:0] free_pool_ptr_tail;
 logic [1:0] free_pool_ptr_incr; // Detects if we don't need to assign an rd register
 assign free_pool_ptr_incr = {((opcode_a == sw) || (rd_a_arch == '0)), ((opcode_b == sw) || (rd_b_arch == '0))};
 
-always_comb begin // NOTE: Need to account for SW instructions which do not have an rd register!
+always_comb begin // Need to account for SW instructions which do not have an rd register!
 	rs1_a_phy 	= rat[rs1_a_arch];
 	
 	if (opcode_a == i_type || opcode_a == lw) begin // No rs2;
 		rs2_a_phy = '0;
 	end else begin 
-		rs2_a_phy 	= rat[rs2_a_arch];
+		rs2_a_phy = rat[rs2_a_arch];
 	end
 	
 	// If we have a dependency of instruction b on instruction a
@@ -84,20 +105,28 @@ always_comb begin // NOTE: Need to account for SW instructions which do not have
 	// If we have a store word, then we won't have an rd
 	unique case (free_pool_ptr_incr) 
 		2'b11: begin // Both A and B are SW or x0
-			rd_a_phy	= '0;
-			rd_b_phy	= '0;
+			rd_a_phy			= '0;
+			rd_a_phy_old 	= '0;
+			rd_b_phy			= '0;
+			rd_b_phy_old 	= '0;
 		end
 		2'b10: begin // A is a SW or x0, B has a valid rd
-			rd_a_phy = '0;
-			rd_b_phy = free_pool[free_pool_ptr_head];
+			rd_a_phy 		= '0;
+			rd_a_phy_old 	= '0;
+			rd_b_phy 		= free_pool[free_pool_ptr_head];
+			rd_b_phy_old 	= rat[rd_b_arch];
 		end
 		2'b01: begin // B is a SW or x0, A has a valid rd
-			rd_a_phy = free_pool[free_pool_ptr_head];
-			rd_b_phy	= '0;
+			rd_a_phy 		= free_pool[free_pool_ptr_head];
+			rd_a_phy_old 	= rat[rd_a_arch];
+			rd_b_phy			= '0;
+			rd_b_phy_old 	= '0;
 		end
 		2'b00: begin // Neither A or B are SW or x0
-			rd_a_phy = free_pool[free_pool_ptr_head];
-			rd_b_phy = free_pool[free_pool_ptr_head + 6'b1];
+			rd_a_phy 		= free_pool[free_pool_ptr_head];
+			rd_a_phy_old 	= rat[rd_a_arch];
+			rd_b_phy 		= free_pool[free_pool_ptr_head + 6'b1];
+			rd_b_phy_old 	= rat[rd_b_arch];
 		end
 	endcase
 end
@@ -146,4 +175,31 @@ always_ff @ (posedge clk) begin
 	end
 end
 
+always_ff @ (posedge clk) begin // Update pipeline register
+	// Pass through, no physical register computation
+	ren_disp_reg_a.pc 		<= dec_ren_reg_a.pc;
+	ren_disp_reg_a.opcode	<= dec_ren_reg_a.opcode;
+	ren_disp_reg_a.funct3	<= dec_ren_reg_a.funct3;
+	ren_disp_reg_a.funct7	<= dec_ren_reg_a.funct7;
+	ren_disp_reg_a.imm		<= dec_ren_reg_a.imm;
+	ren_disp_reg_a.control	<= dec_ren_reg_a.control;
+	
+	ren_disp_reg_b.pc 		<= dec_ren_reg_b.pc;
+	ren_disp_reg_b.opcode	<= dec_ren_reg_b.opcode;
+	ren_disp_reg_b.funct3	<= dec_ren_reg_b.funct3;
+	ren_disp_reg_b.funct7	<= dec_ren_reg_b.funct7;
+	ren_disp_reg_b.imm		<= dec_ren_reg_b.imm;
+	ren_disp_reg_b.control	<= dec_ren_reg_b.control;
+	
+	// Push new physical register addresses to pipeline registers
+	ren_disp_reg_a.rd			<= rd_a_phy;
+	ren_disp_reg_a.rd_old	<= rd_a_phy_old;
+	ren_disp_reg_a.rs1		<= rs1_a_phy;
+	ren_disp_reg_a.rs2		<= rs2_a_phy;
+	
+	ren_disp_reg_b.rd			<= rd_b_phy;
+	ren_disp_reg_b.rd_old	<= rd_b_phy_old;
+	ren_disp_reg_b.rs1		<= rs1_b_phy;
+	ren_disp_reg_b.rs2		<= rs2_b_phy;
+end
 endmodule

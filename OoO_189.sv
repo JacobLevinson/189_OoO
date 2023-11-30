@@ -1,30 +1,40 @@
 `timescale 1ns/1ps
-module 189_OoO 
+module OoO_189(
+output logic clk,
+output logic reset
+);
+import typedefs::*; // Quartus is dumb and only supports SV 2005, need SV 2009 to import this in the module header :(((
+
+initial begin
+	clk = 0;
+	reset = 1;
+	repeat(250) begin // Apparently we can't use forever loops??
+		reset = 0;
+		#10 clk = !clk;
+	end
+end
+
+logic [31:0] pc; // Global PC, no jumping
+
+always_ff @ (posedge clk) begin
+	pc <= pc + 32'd8;
+end
 
 
-typedef struct {
-    logic MemRead;
-    logic MemtoReg;
-    logic [1:0] ALUOp;
-    logic MemtoReg;
-    logic MemWrite;
-    logic ALUSrc;
-    logic RegWrite;
-} ctrlStruct;
+fetch_decode fd_reg; // Pipeline Register
+fetch f_stage(.clk, .pc, .fd_reg);
 
+instStruct dec_ren_reg_a; // Pipeline Register
+instStruct dec_ren_reg_b; // Pipeline Register
+decode(.clk, .fd_reg, .dec_ren_reg_a, .dec_ren_reg_b);
 
-typedef struct {
-    logic [31:0] pc;
-    logic [6:0] opcode;
-    logic [5:0] rs1;
-    logic [5:0] rs2;
-    logic [5:0] rd;
-    logic [6:0] funct7;
-    logic [2:0] funct3;
-    logic [31:0] imm;
-    ctrlStruct control;
-} instStruct;
+dispatchStruct ren_disp_reg_a; // Pipeline Register
+dispatchStruct ren_disp_reg_b; // Pipeline Register
+rename(.clk, .reset, .dec_ren_reg_a, .dec_ren_reg_b, .ren_disp_reg_a, .ren_disp_reg_b);
 
+// Reservation Station Here
+
+/*
 parameter ROB_SIZE_BITS = 4;
 
 typedef struct {
@@ -89,5 +99,6 @@ typedef struct {
     logic [31:0] pc2;
     logic valid2;
 } robDispatchStruct;
+*/
 
 endmodule

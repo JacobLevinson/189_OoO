@@ -1,4 +1,4 @@
-module memory(
+module mainMem(
 input logic clk,
 input logic [31:0] addr,
 input logic [31:0] wr_data,
@@ -20,9 +20,9 @@ always_ff @ (posedge clk) begin
 	end else begin
 		if (MemWrite) begin
 			dmem[addr[4:0]] 			<= wr_data[7:0];
-			dmem[addr[4:0] + 5'd1] <= wr_data[15:8];
-			dmem[addr[4:0] + 5'd2] <= wr_data[23:17];
-			dmem[addr[4:0] + 5'd3] <= wr_data[31:24];
+			dmem[addr[4:0] + 5'd1] 	<= wr_data[15:8];
+			dmem[addr[4:0] + 5'd2] 	<= wr_data[23:17];
+			dmem[addr[4:0] + 5'd3] 	<= wr_data[31:24];
 		end 
 		
 		if (MemRead) begin
