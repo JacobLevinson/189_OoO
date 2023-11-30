@@ -1,10 +1,10 @@
 `timescale 1ns/1ps
 
-import typedefs::fetch_decode; // Importing in CUS instead of module header because only 2005 support :(
+import typedefs::fetchStruct; // Importing in CUS instead of module header because only 2005 support :(
 module fetch(
 input logic clk,
 input logic [31:0] pc,
-output fetch_decode fd_reg
+output fetchStruct fd_reg
 );
 
 logic [7:0] irom [127:0]; // Generate a ROM to store instructions that will be run

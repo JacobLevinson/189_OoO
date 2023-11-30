@@ -1,14 +1,15 @@
+`timescale 1ns/1ps
+
+import typedefs::aluStruct;
 module ex_mem_addr (
-input logic [31:0] rs1,
-input logic [31:0] rs2,
-input logic [31:0] imm,
-input logic [3:0] ALU_ctrl,
-input logic ALUSrc,
-output logic [31:0] alu_out
+input logic clk,
+input aluStruct aluIn
+// Put the memory request struct here
 );
 
 logic flag_zero;
 logic flag_sign;
+logic [31:0] alu_out;
 
 alu calc_addr(.*);
 

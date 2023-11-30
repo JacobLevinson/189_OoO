@@ -5,7 +5,7 @@ typedef struct {
 	logic [31:0] inst_b;
 	logic [31:0] pc_a;
 	logic [31:0] pc_b;
-} fetch_decode;
+} fetchStruct;
 
 typedef struct {
 	logic MemRead;
@@ -40,5 +40,25 @@ typedef struct { // Use this struct for physical register addressing
    logic [31:0] imm;
    ctrlStruct control;
 } dispatchStruct;
+
+typedef struct {
+   logic [31:0] rs1;
+   logic [31:0] rs2;
+	logic [31:0] imm;
+   logic [3:0] ALU_ctrl;
+	logic ALUSrc;
+} aluStruct;
+
+typedef struct {
+	logic [31:0] addr;
+	logic [31:0] wr_data;
+	logic MemWrite;
+	logic MemRead;
+} memReqStruct;
+
+typedef struct {
+    logic [31:0] rd_data;
+    logic valid;
+} memRespStruct;
 
 endpackage : typedefs

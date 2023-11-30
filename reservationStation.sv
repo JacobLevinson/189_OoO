@@ -1,4 +1,4 @@
-module reservationStation (
+/*module reservationStation (
     input logic clk,
 	input dispatchStruct dispatchData,
 	input logic [63:0] retireRegReady, // bit is 1 if we want to mark reg as ready after retire
@@ -107,4 +107,4 @@ end
 
 
 
-endmodule
+endmodule*/

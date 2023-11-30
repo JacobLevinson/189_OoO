@@ -1,11 +1,11 @@
 `timescale 1ns/100ps
 
-import typedefs::fetch_decode;
+import typedefs::fetchStruct;
 import typedefs::ctrlStruct; // Importing in CUS instead of module header because only 2005 support :(
 import typedefs::instStruct;
 module decode (
 input logic clk,
-input fetch_decode fd_reg,
+input fetchStruct fd_reg,
 output instStruct dec_ren_reg_a,
 output instStruct dec_ren_reg_b
 );

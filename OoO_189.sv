@@ -21,7 +21,7 @@ always_ff @ (posedge clk) begin
 end
 
 
-fetch_decode fd_reg; // Pipeline Register
+fetchStruct fd_reg; // Pipeline Register
 fetch f_stage(.clk, .pc, .fd_reg);
 
 instStruct dec_ren_reg_a; // Pipeline Register
@@ -70,22 +70,6 @@ typedef struct {
     logic [5:0] destRegOld2;
 	logic inst2valid;
 } dispatchStruct;
-
-typedef struct {
-    logic [31:0] input1;
-    logic [31:0] input2;
-    logic valid;
-} aluInputStruct;
-
-typedef struct {
-    logic [31:0] addr;
-    logic valid;
-} memReadInputStruct;
-
-typedef struct {
-    logic [31:0] value;
-    logic valid;
-} memReadOutputStruct;
 
 typedef struct {
     logic [5:0] destReg1;
