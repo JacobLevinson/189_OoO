@@ -34,15 +34,17 @@ always_ff @(posedge clk) begin
 	
 	// Find the first free spot in ROB
 	// Find the MSB that is set to 1
+	automatic int temp = 0;
 	for (int i = 15; i >= 0; i--) begin
 		if (robFree[i] == 1'b1) begin
 			firstRobFree <= i[3:0];
+			temp = i[3:0];
 			break;
 		end
 	end
 	// Find the second free spot in ROB
 	// Find the second MSB that is set to 1
-	for (int i = firstRobFree - 1; i >= 0; i--) begin
+	for (int i = temp - 1; i >= 0; i--) begin
 		if (robFree[i] == 1'b1) begin
 			secondRobFree <= i[3:0];
 			break;
@@ -58,7 +60,7 @@ always_ff @(posedge clk) begin
 		robDispatch.pc1 <= dispatchData.inst1.pc;
 		robDispatch.valid1 <= 1;
 		// Now dispatch to reservation station
-
+		
 	end else begin
 		robDispatch.valid1 <= 0;
 	end
