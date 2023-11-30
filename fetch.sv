@@ -1,11 +1,11 @@
-`timescale 1ns/1ps
+/*`timescale 1ns/1ps
 module fetch(
     input logic clk,
     input logic pc,
     output logic instA,
     output logic instB
-)
-    reg [31:0] rom []; // Assuming 8-bit ROM with variable number of locations
+);
+    reg [31:0] rom [64]; // Assuming 8-bit ROM with variable number of locations
     assign logic line = pc/4;
     initial begin
     // Read data from file into ROM
@@ -25,4 +25,4 @@ module fetch(
         end
     end
 
-endmodule
+endmodule */
