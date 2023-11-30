@@ -75,7 +75,7 @@ end
 // Check that we don't ever get into the default case
 property exclusive_flag;
 	@ (posedge clk)
-	(zero && sign);
+	!(zero && sign);
 endproperty
 
 assert property (exclusive_flag);

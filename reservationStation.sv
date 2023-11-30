@@ -1,4 +1,4 @@
-/*module reservationStation (
+module reservationStation (
     input logic clk,
 	input dispatchStruct dispatchData,
 	input logic [63:0] retireRegReady, // bit is 1 if we want to mark reg as ready after retire
@@ -9,7 +9,7 @@
 	input logic [15:0] robFree,
 	output robDispatchStruct robDispatch
 );
-logic [63:0] archReg [31:0] = 0;
+logic [63:0] physReg [31:0] = 0;
 logic [3:0] firstRobFree;
 logic [3:0] secondRobFree;
 logic [3:0] robFreeSpace;
@@ -61,6 +61,7 @@ always_ff @(posedge clk) begin
 		robDispatch.valid1 <= 1;
 		// Now dispatch to reservation station
 		
+		
 	end else begin
 		robDispatch.valid1 <= 0;
 	end
@@ -82,11 +83,11 @@ always_ff @(posedge clk) begin
 
 	// Forward outputs from complete stage to waiting registers and mark them as ready
 	if(completeForward.valid1) begin
-		archReg [completeForward.reg1] <= completeForward.val1;
+		physReg [completeForward.reg1] <= completeForward.val1;
 		reservationTable [completeForward.reg1].src1rdy <= 1;
 	end
 	if(completeForward.valid2) begin
-		archReg [completeForward.reg2] <= completeForward.val2;
+		physReg [completeForward.reg2] <= completeForward.val2;
 		reservationTable [completeForward.reg2].src2rdy <= 1;
 	end
 
@@ -107,4 +108,4 @@ end
 
 
 
-endmodule*/
+endmodule
