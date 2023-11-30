@@ -1,8 +1,0 @@
-module ex_mem (
-input logic [31:0] inA,
-input logic [31:0] inB,
-input logic [31:0] wr_data,
-input logic MemWrite,
-input logic MemRead,
-output logic [31:0] rd_data
-);
