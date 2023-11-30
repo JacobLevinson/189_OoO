@@ -54,13 +54,11 @@ typedef struct {
 
 typedef struct {
 	instStruct inst1;
+    logic [5:0] destRegOld1;
 	logic inst1valid;
 	instStruct inst2;
+    logic [5:0] destRegOld2;
 	logic inst2valid;
-    logic inst1rs1Val;
-    logic inst1rs2Val;
-    logic inst2rs1Val;
-    logic inst2rs2Val;
 } dispatchStruct;
 
 typedef struct {
@@ -78,5 +76,18 @@ typedef struct {
     logic [31:0] value;
     logic valid;
 } memReadOutputStruct;
+
+typedef struct {
+    logic [5:0] destReg1;
+    logic [5:0] destRegOld1;
+    logic [5:0] robNum1;
+    logic [31:0] pc1;
+    logic valid1;
+    logic [5:0] destReg2;
+    logic [5:0] destRegOld2;
+    logic [5:0] robNum2;
+    logic [31:0] pc2;
+    logic valid2;
+} robDispatchStruct;
 
 endmodule
