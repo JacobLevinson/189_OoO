@@ -1,3 +1,17 @@
+`timescale 1ns/1ps
+
+import typedefs::aluStruct;
+import typedefs::fetchStruct;
+import typedefs::dispatchStruct;
+import typedefs::forwardingStruct;
+import typedefs::fuRdyStruct;
+import typedefs::memReadInputStruct;
+import typedefs::memReadOutputStruct;
+import typedefs::robDispatchStruct;
+
+
+
+
 module reservationStation (
     input logic clk,
 	input dispatchStruct dispatchData,
@@ -9,7 +23,7 @@ module reservationStation (
 	input logic [15:0] robFree,
 	output robDispatchStruct robDispatch
 );
-logic [63:0] physReg [31:0] = 0;
+logic [63:0] [31:0] physReg = 0;
 logic [3:0] firstRobFree;
 logic [3:0] secondRobFree;
 logic [3:0] robFreeSpace;
@@ -28,13 +42,13 @@ always_ff @(posedge clk) begin
 
 	// Check if there is at least 2 free spots in the ROB by checking if there's at least 2 1's in robFree
 
-	if($countones(robFree) < 2) begin // or other stall signals, we will wrap the rest of our code in this if statement
-		//STALL
-	end
+//	if($countones(robFree) < 2) begin // or other stall signals, we will wrap the rest of our code in this if statement
+//		//STALL
+//	end
 	
 	// Find the first free spot in ROB
 	// Find the MSB that is set to 1
-	automatic int temp = 0;
+	automatic integer temp = 0;
 	for (int i = 15; i >= 0; i--) begin
 		if (robFree[i] == 1'b1) begin
 			firstRobFree <= i[3:0];
