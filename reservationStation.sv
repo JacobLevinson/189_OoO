@@ -47,6 +47,7 @@ always_ff @(posedge clk) begin
             rsTable[i].instruction.pc       <= '0;
             rsTable[i].instruction.opcode   <= '0;
             rsTable[i].instruction.rd       <= '0;
+            rsTable[i].instruction.rd_old   <= '0;
             rsTable[i].instruction.rs1      <= '0;
             rsTable[i].instruction.rs2      <= '0;
             rsTable[i].instruction.imm      <= '0;
@@ -86,7 +87,7 @@ assign validity = {rsTable[15].valid, rsTable[14].valid, rsTable[13].valid, rsTa
                    rsTable[7].valid, rsTable[5].valid, rsTable[5].valid, rsTable[4].valid, 
                    rsTable[3].valid, rsTable[2].valid, rsTable[1].valid, rsTable[0].valid};
 
-logic [4:0] issue [1:0];
+logic [4:0] issue [2:0];
 
 integer j;
 always_comb begin 
@@ -157,7 +158,7 @@ always_ff @(posedge clk) begin // Issue logic
             issue0.rs2      <= reg_response[0].rs2_data; // 32 bit data
             issue0.imm      <= rsTable[issue[0][3:0]].instruction.imm;
             issue0.ALUCtrl  <= rsTable[issue[0][3:0]].instruction.ALUCtrl;
-            issue0.control  <= rsTable[issue[0][3:0]].instructions.control;
+            issue0.control  <= rsTable[issue[0][3:0]].instruction.control;
         end 
         if (issue[1] != 5'b1) begin // Checks that we found a valid entry
             issue1.valid    <= rsTable[issue[1][3:0]].valid;
@@ -169,7 +170,7 @@ always_ff @(posedge clk) begin // Issue logic
             issue1.rs2      <= reg_response[1].rs2_data; // 32 bit data
             issue1.imm      <= rsTable[issue[1][3:0]].instruction.imm;
             issue1.ALUCtrl  <= rsTable[issue[1][3:0]].instruction.ALUCtrl;
-            issue1.control  <= rsTable[issue[1][3:0]].instructions.control;
+            issue1.control  <= rsTable[issue[1][3:0]].instruction.control;
         end 
         if (fuRdy.mem) begin // First check that the FU is ready
             if (issue[1] != 5'b1) begin // Checks that we found a valid entry
@@ -182,7 +183,7 @@ always_ff @(posedge clk) begin // Issue logic
                 issue2.rs2      <= reg_response[2].rs2_data; // 32 bit data
                 issue2.imm      <= rsTable[issue[2][3:0]].instruction.imm;
                 issue2.ALUCtrl  <= rsTable[issue[2][3:0]].instruction.ALUCtrl;
-                issue2.control  <= rsTable[issue[2][3:0]].instructions.control;
+                issue2.control  <= rsTable[issue[2][3:0]].instruction.control;
             end 
             // Otherwise, do not issue and hold previous issue in registers
         end

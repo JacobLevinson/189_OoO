@@ -23,14 +23,14 @@ assign aluIn0.rs1       = issue0.rs1;
 assign aluIn0.rs2       = issue0.rs2;
 assign aluIn0.imm       = issue0.imm;
 assign aluIn0.ALUCtrl   = issue0.ALUCtrl;
-assign aluIn0.ALUSrc    = issue0.ALUSrc;
+assign aluIn0.ALUSrc    = issue0.control.ALUSrc;
 assign aluIn0.valid     = issue0.valid;
 
 assign aluIn1.rs1       = issue1.rs1;
 assign aluIn1.rs2       = issue1.rs2;
 assign aluIn1.imm       = issue1.imm;
 assign aluIn1.ALUCtrl   = issue1.ALUCtrl;
-assign aluIn1.ALUSrc    = issue1.ALUSrc;
+assign aluIn1.ALUSrc    = issue1.control.ALUSrc;
 assign aluIn1.valid     = issue1.valid;
 
 aluOutStruct aluOut0;
@@ -65,7 +65,7 @@ assign aluIn2.rs1       = issue2.rs1;
 assign aluIn2.rs2       = issue2.rs2;
 assign aluIn2.imm       = issue2.imm;
 assign aluIn2.ALUCtrl   = issue2.ALUCtrl;
-assign aluIn2.ALUSrc    = issue2.ALUSrc;
+assign aluIn2.ALUSrc    = issue2.control.ALUSrc;
 assign aluIn2.valid     = issue2.valid;
 
 aluOutStruct aluOut2;

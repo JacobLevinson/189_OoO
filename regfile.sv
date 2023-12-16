@@ -32,7 +32,7 @@ logic [6:0] rd_c;
 
 logic [31:0] wr_data_a;
 logic [31:0] wr_data_b;
-logic [31:0] wr_data_b;
+logic [31:0] wr_data_c;
 
 // Parse structs into local signals
 assign RegWrite_a = request_a.RegWrite;

@@ -84,16 +84,42 @@ always_comb begin
         rsLine_b.src1rdy        = phy_reg_rdy[dispatch_reg_b.rs1]; // Will be updated further in RS table
         rsLine_b.src2rdy        = rsLine_b.instruction.control.ALUSrc ? 1'b1 : phy_reg_rdy[dispatch_reg_b.rs2]; // Will be updated further in RS table
         // This line checks that if we are to use an immediate, then ignore what is in the rs2 field for register readiness
-        rsLine_b.robNum         = rs_rob_ptr;
+        rsLine_b.robNum         = rs_rob_ptr + 1'b1;
      end else begin
         rsLine_a.valid          = '0;
-        rsLine_a.instruction    = '0;
+        rsLine_a.instruction.pc       = '0;
+        rsLine_a.instruction.opcode   = '0;
+        rsLine_a.instruction.rd       = '0;
+        rsLine_a.instruction.rd_old   = '0;
+        rsLine_a.instruction.rs1      = '0;
+        rsLine_a.instruction.rs2      = '0;
+        rsLine_a.instruction.imm      = '0;
+        rsLine_a.instruction.ALUCtrl  = '0;
+        rsLine_a.instruction.control.MemRead  = '0;
+        rsLine_a.instruction.control.MemtoReg = '0;
+        rsLine_a.instruction.control.ALUOp    = '0;
+        rsLine_a.instruction.control.MemWrite = '0;
+        rsLine_a.instruction.control.ALUSrc   = '0;
+        rsLine_a.instruction.control.RegWrite = '0;   
         rsLine_a.src1rdy        = '0;
         rsLine_a.src2rdy        = '0;
         rsLine_a.robNum         = '0;
     
         rsLine_b.valid          = '0;
-        rsLine_b.instruction    = '0;
+        rsLine_b.instruction.pc       = '0;
+        rsLine_b.instruction.opcode   = '0;
+        rsLine_b.instruction.rd       = '0;
+        rsLine_b.instruction.rd_old   = '0;
+        rsLine_b.instruction.rs1      = '0;
+        rsLine_b.instruction.rs2      = '0;
+        rsLine_b.instruction.imm      = '0;
+        rsLine_b.instruction.ALUCtrl  = '0;
+        rsLine_b.instruction.control.MemRead  = '0;
+        rsLine_b.instruction.control.MemtoReg = '0;
+        rsLine_b.instruction.control.ALUOp    = '0;
+        rsLine_b.instruction.control.MemWrite = '0;
+        rsLine_b.instruction.control.ALUSrc   = '0;
+        rsLine_b.instruction.control.RegWrite = '0;  
         rsLine_b.src1rdy        = '0;
         rsLine_b.src2rdy        = '0;
         rsLine_b.robNum         = '0;

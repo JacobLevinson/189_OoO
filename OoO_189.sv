@@ -53,7 +53,7 @@ regRespStruct reg_response [2:0];
 regfile REGISTERS(.clk, .reset, .request_a(reg_request[0]), .request_b(reg_request[1]), .request_c(reg_request[2]), 
                   .response_a(reg_response[0]), .response_b(reg_response[1]), .response_c(reg_response[2]));
 
-fuRdyStruct fuTable; // TO DO: IMPLEMENT CONTROL LOGIC FOR THIS TABLE IN TOP LEVEL
+fuRdyStruct fuRdy; // TO DO: IMPLEMENT CONTROL LOGIC FOR THIS TABLE IN TOP LEVEL
 rsIssue issue0;
 rsIssue issue1;
 rsIssue issue2;
