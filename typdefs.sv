@@ -131,4 +131,42 @@ typedef struct {
     ctrlStruct control;
 } completeStruct;
 
+
+parameter ROB_SIZE_BITS = 4;
+
+typedef struct {
+    logic use;
+    instStruct instruction;
+    logic src1rdy;
+    logic src2rdy;
+    logic src2rdy;
+    logic [1:0] fu;
+    logic [ROB_SIZE_BITS-1:0] robNum;
+} reservationStationEntry;
+
+typedef struct {
+    logic valid1;
+    logic valid2;
+    logic [5:0] reg1;
+    logic [5:0] reg2;
+    logic [31:0] val1;
+    logic [31:0] val2;
+} forwardingStruct;
+
+typedef struct {
+    logic [5:0] destReg1;
+    logic [5:0] destRegOld1;
+    logic [5:0] robNum1;
+    logic [31:0] pc1;
+    logic valid1;
+    logic [5:0] destReg2;
+    logic [5:0] destRegOld2;
+    logic [5:0] robNum2;
+    logic [31:0] pc2;
+    logic valid2;
+} robDispatchStruct;
+
+
+
+
 endpackage : typedefs
