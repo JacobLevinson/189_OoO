@@ -1,3 +1,5 @@
+`timescale 1ns/100ps
+
 package typedefs;
 parameter ROB_SIZE_BITS = 4;
 typedef struct {
@@ -20,51 +22,36 @@ typedef struct { // Use this struct for architectural register addressing
 	logic [31:0] pc;
 	logic [6:0] opcode;
 	logic [4:0] rd; // 5 bit architectural addressing
-   logic [4:0] rs1;
-   logic [4:0] rs2;
+    logic [4:0] rs1;
+    logic [4:0] rs2;
 	logic [2:0] funct3;
-   logic [6:0] funct7;
-   logic [31:0] imm;
-   ctrlStruct control;
+    logic [6:0] funct7;
+    logic [31:0] imm;
+    ctrlStruct control;
 } instStruct;
 
-typedef struct {
-   logic [31:0] rs1;
-   logic [31:0] rs2;
-	logic [31:0] imm;
-   logic [3:0] ALU_ctrl;
-	logic ALUSrc;
-} aluStruct;
+typedef struct { // Use this struct for physical register addressing
+	logic [31:0] pc;
+	logic [6:0] opcode;
+	logic [5:0] rd; // 6 bit physical addressing
+	logic [5:0] rd_old; // This is needed by the ROB to tell the rename stage to put this register in the free pool upon retire
+    logic [5:0] rs1;
+    logic [5:0] rs2;
+    logic [31:0] imm;
+    logic [3:0] ALUCtrl;
+    ctrlStruct control;
+} dispatchStruct;
+
 
 typedef struct {
-	logic [31:0] addr;
-	logic [31:0] wr_data;
-	logic MemWrite;
-	logic MemRead;
-} memReqStruct;
-
-typedef struct {
-    logic [31:0] rd_data;
     logic valid;
-} memRespStruct;
-
-typedef struct {
-    logic useBit;
-    instStruct instruction;
+    dispatchStruct instruction;
+    // Flags
     logic src1rdy;
     logic src2rdy;
     logic [1:0] fu;
-    logic [ROB_SIZE_BITS-1:0] robNum;
-} reservationStationEntry;
-
-typedef struct { 
-    logic valid1;
-    logic valid2;
-    logic [5:0] reg1;
-    logic [5:0] reg2;
-    logic [31:0] val1;
-    logic [31:0] val2;
-} forwardingStruct;
+    logic [3:0] robNum;
+} rsEntry;
 
 typedef struct {
     logic alu1;
@@ -72,35 +59,76 @@ typedef struct {
     logic mem;
 } fuRdyStruct;
 
-typedef struct { // Use this struct for physical register addressing
-	instStruct inst1;
-    logic [5:0] destRegOld1;  // This is needed by the ROB to tell the rename stage to put this register in the free pool upon retire
-	logic inst1valid;
-	instStruct inst2;
-    logic [5:0] destRegOld2;
-	logic inst2valid;
-} dispatchStruct;
+typedef struct {
+    logic RegWrite; // Control signal
+    logic [6:0] rs1; // Physical
+    logic [6:0] rs2; // Physical
+    logic [6:0] rd; // Physical
+    logic [31:0] wr_data; // Data to write
+} regReqStruct;
 
 typedef struct {
-    logic [5:0] destReg1;
-    logic [5:0] destRegOld1;
-    logic [5:0] robNum1;
-    logic [31:0] pc1;
-    logic valid1;
-    logic [5:0] destReg2;
-    logic [5:0] destRegOld2;
-    logic [5:0] robNum2;
-    logic [31:0] pc2;
-    logic valid2;
-} robDispatchStruct;
-
+    logic [31:0] rs1_data;
+    logic [31:0] rs2_data;
+} regRespStruct;
 
 typedef struct {
-	logic [31:0] address;
-} memReadInputStruct;
+    logic valid;
+    logic [3:0] robNum;
+	logic [31:0] pc;
+	logic [5:0] rd; // 6 bit physical addressing
+	logic [5:0] rd_old; // This is needed by the ROB to tell the rename stage to put this register in the free pool upon retire
+    logic [31:0] rs1;
+    logic [31:0] rs2;
+    logic [31:0] imm;
+    logic [3:0] ALUCtrl;
+    ctrlStruct control;
+} rsIssue;
 
 typedef struct {
-	logic [31:0] data;
-	logic ready;
-} memReadOutputStruct;
+    logic [31:0] rs1;
+    logic [31:0] rs2;
+    logic [31:0] imm;
+    logic [3:0] ALUCtrl;
+	logic ALUSrc;
+	logic valid;
+} aluInStruct;
+
+typedef struct {
+    logic[31:0] result;
+    logic flag_sign;
+    logic flag_zero;
+    logic valid;
+} aluOutStruct;
+
+typedef struct {
+    logic MemWrite;
+    logic MemRead;
+} memFlagsStruct;
+
+typedef struct {
+	logic [31:0] addr;
+	logic [31:0] wr_data;
+	logic MemWrite;
+	logic MemRead;
+	logic valid;
+} memReqStruct;
+
+typedef struct {
+    logic [31:0] rd_data;
+    logic MemWrite;
+	logic MemRead;
+    logic valid;
+} memRespStruct;
+
+typedef struct {
+    logic valid;
+    logic [3:0] robNum;
+	logic [31:0] pc;
+	logic [5:0] rd; // 6 bit physical addressing
+	logic [5:0] rd_old; // This is needed by the ROB to tell the rename stage to put this register in the free pool upon retire
+    logic [31:0] result;
+    ctrlStruct control;
+} completeStruct;
+
 endpackage : typedefs
