@@ -1,16 +1,14 @@
 `timescale 1ns/100ps
 
-import typedefs::instStruct;
-import typedefs::dispatchStruct;
-module rename (
+module rename import typedefs::*; (
 input logic clk,
 input logic reset,
-input instStruct dec_ren_reg_a,
-input instStruct dec_ren_reg_b,
+input instStruct rename_reg_a,
+input instStruct rename_reg_b,
 //input logic [5:0] free_reg_a, // Note: Need to code this logic still
 //input logic [5:0] free_reg_b,
-output dispatchStruct ren_disp_reg_a,
-output dispatchStruct ren_disp_reg_b
+output dispatchStruct dispatch_reg_a,
+output dispatchStruct dispatch_reg_b
 );
 
 // Local input variables
@@ -18,21 +16,33 @@ logic [6:0] opcode_a;
 logic [4:0] rd_a_arch;
 logic [4:0] rs1_a_arch;
 logic [4:0] rs2_a_arch;
+logic [2:0] funct3_a;
+logic [6:0] funct7_a;
+logic [1:0] ALUOp_a;
 
-assign opcode_a	= dec_ren_reg_a.opcode;
-assign rd_a_arch	= dec_ren_reg_a.rd;
-assign rs1_a_arch = dec_ren_reg_a.rs1;
-assign rs2_a_arch = dec_ren_reg_a.rs2;
+assign opcode_a	    = rename_reg_a.opcode;
+assign rd_a_arch    = rename_reg_a.rd;
+assign rs1_a_arch   = rename_reg_a.rs1;
+assign rs2_a_arch   = rename_reg_a.rs2;
+assign funct3_a     = rename_reg_a.funct3;
+assign funct7_a     = rename_reg_a.funct7;
+assign ALUOp_a      = rename_reg_a.control.ALUOp;
 
 logic [6:0] opcode_b;
 logic [4:0] rd_b_arch;
 logic [4:0] rs1_b_arch;
 logic [4:0] rs2_b_arch;
+logic [2:0] funct3_b;
+logic [6:0] funct7_b;
+logic [1:0] ALUOp_b;
 
-assign opcode_b	= dec_ren_reg_b.opcode;
-assign rd_b_arch	= dec_ren_reg_b.rd;
-assign rs1_b_arch = dec_ren_reg_b.rs1;
-assign rs2_b_arch = dec_ren_reg_b.rs2;
+assign opcode_b	    = rename_reg_b.opcode;
+assign rd_b_arch	= rename_reg_b.rd;
+assign rs1_b_arch   = rename_reg_b.rs1;
+assign rs2_b_arch   = rename_reg_b.rs2;
+assign funct3_b     = rename_reg_b.funct3;
+assign funct7_b     = rename_reg_b.funct7;
+assign ALUOp_b      = rename_reg_b.control.ALUOp;
 
 // Local output variables
 logic [5:0] rd_a_phy;
@@ -44,6 +54,9 @@ logic [5:0] rd_b_phy;
 logic [5:0] rd_b_phy_old;
 logic [5:0] rs1_b_phy;
 logic [5:0] rs2_b_phy;
+
+logic [3:0] ALUCtrl_a;
+logic [3:0] ALUCtrl_b;
 
 // Instruction LUT
 localparam i_type	= 7'b0010011;
@@ -105,9 +118,9 @@ always_comb begin // Need to account for SW instructions which do not have an rd
 	// If we have a store word, then we won't have an rd
 	unique case (free_pool_ptr_incr) 
 		2'b11: begin // Both A and B are SW or x0
-			rd_a_phy			= '0;
+			rd_a_phy		= '0;
 			rd_a_phy_old 	= '0;
-			rd_b_phy			= '0;
+			rd_b_phy		= '0;
 			rd_b_phy_old 	= '0;
 		end
 		2'b10: begin // A is a SW or x0, B has a valid rd
@@ -127,6 +140,12 @@ always_comb begin // Need to account for SW instructions which do not have an rd
 			rd_a_phy_old 	= rat[rd_a_arch];
 			rd_b_phy 		= free_pool[free_pool_ptr_head + 6'b1];
 			rd_b_phy_old 	= rat[rd_b_arch];
+		end
+		default: begin
+		    rd_a_phy		= '0;
+			rd_a_phy_old 	= '0;
+			rd_b_phy		= '0;
+			rd_b_phy_old 	= '0;
 		end
 	endcase
 end
@@ -155,51 +174,259 @@ always_ff @ (posedge clk) begin
 				// No changes to RAT or free pool
 			end
 			2'b10: begin // A is a SW or x0, B has a valid rd
-				rat[rd_b_arch] 								<= free_pool[free_pool_ptr_head]; 
+				rat[rd_b_arch] 							<= free_pool[free_pool_ptr_head]; 
 				free_pool[free_pool_ptr_head] 			<= '0;
-				free_pool_ptr_head							<= free_pool_ptr_head + 6'd1;
+				free_pool_ptr_head						<= free_pool_ptr_head + 6'd1;
 			end
 			2'b01: begin // B is a SW or x0, A has a valid rd
-				rat[rd_a_arch] 								<= free_pool[free_pool_ptr_head]; 
+				rat[rd_a_arch] 							<= free_pool[free_pool_ptr_head]; 
 				free_pool[free_pool_ptr_head] 			<= '0;
-				free_pool_ptr_head							<= free_pool_ptr_head + 6'd1;
+				free_pool_ptr_head						<= free_pool_ptr_head + 6'd1;
 			end
 			2'b00: begin // Both are SW
-				rat[rd_a_arch]									<= free_pool[free_pool_ptr_head]; 
-				rat[rd_b_arch]									<= free_pool[free_pool_ptr_head + 6'd1]; 				
+				rat[rd_a_arch]							<= free_pool[free_pool_ptr_head]; 
+				rat[rd_b_arch]							<= free_pool[free_pool_ptr_head + 6'd1]; 				
 				free_pool[free_pool_ptr_head] 			<= '0;
 				free_pool[free_pool_ptr_head + 6'b1] 	<= '0;
-				free_pool_ptr_head							<= free_pool_ptr_head + 6'd2;
+				free_pool_ptr_head						<= free_pool_ptr_head + 6'd2;
+			end
+			default: begin
 			end
 		endcase
 	end
 end
 
-always_ff @ (posedge clk) begin // Update pipeline register
-	// Pass through, no physical register computation
-	ren_disp_reg_a.pc 		<= dec_ren_reg_a.pc;
-	ren_disp_reg_a.opcode	<= dec_ren_reg_a.opcode;
-	ren_disp_reg_a.funct3	<= dec_ren_reg_a.funct3;
-	ren_disp_reg_a.funct7	<= dec_ren_reg_a.funct7;
-	ren_disp_reg_a.imm		<= dec_ren_reg_a.imm;
-	ren_disp_reg_a.control	<= dec_ren_reg_a.control;
-	
-	ren_disp_reg_b.pc 		<= dec_ren_reg_b.pc;
-	ren_disp_reg_b.opcode	<= dec_ren_reg_b.opcode;
-	ren_disp_reg_b.funct3	<= dec_ren_reg_b.funct3;
-	ren_disp_reg_b.funct7	<= dec_ren_reg_b.funct7;
-	ren_disp_reg_b.imm		<= dec_ren_reg_b.imm;
-	ren_disp_reg_b.control	<= dec_ren_reg_b.control;
-	
-	// Push new physical register addresses to pipeline registers
-	ren_disp_reg_a.rd			<= rd_a_phy;
-	ren_disp_reg_a.rd_old	<= rd_a_phy_old;
-	ren_disp_reg_a.rs1		<= rs1_a_phy;
-	ren_disp_reg_a.rs2		<= rs2_a_phy;
-	
-	ren_disp_reg_b.rd			<= rd_b_phy;
-	ren_disp_reg_b.rd_old	<= rd_b_phy_old;
-	ren_disp_reg_b.rs1		<= rs1_b_phy;
-	ren_disp_reg_b.rs2		<= rs2_b_phy;
+
+// LUT for 4 bit operations
+localparam ctrl_and = 4'b0000;
+localparam ctrl_or 	= 4'b0001;
+localparam ctrl_add = 4'b0010;
+localparam ctrl_sub = 4'b0110;
+localparam ctrl_xor = 4'b0011;
+localparam ctrl_sra	= 4'b1110;
+
+// LUT for ALU 2-bit control signals
+localparam op_add   = 2'b00;
+localparam op_sub   = 2'b01;
+localparam op_rtype = 2'b10;
+localparam op_itype = 2'b11;
+
+// LUT for funct3
+localparam f3_math = 3'b000; 
+localparam f3_xor  = 3'b100;
+localparam f3_sr   = 3'b101;
+localparam f3_or   = 3'b110;
+localparam f3_and  = 3'b111;
+
+// LUT for funct7
+localparam primary   = 7'b0000000; 
+localparam secondary = 7'b0100000;
+
+// Continue decoding ALUOp
+always_comb begin // Decode ALU control signal for instr a
+    unique case(ALUOp_a) 
+        op_add: begin
+            ALUCtrl_a = ctrl_add;
+        end
+        op_sub: begin
+            ALUCtrl_a = ctrl_sub;
+        end
+        op_rtype: begin
+            unique case(funct3_a) 
+                f3_math: begin
+                    if (funct7_a == primary) begin
+                        ALUCtrl_a = ctrl_add;
+                    end else begin
+                        ALUCtrl_a = ctrl_sub;
+                    end
+                end
+                f3_xor: begin
+                    ALUCtrl_a = ctrl_xor;
+                end
+                f3_sr: begin
+                    ALUCtrl_a = ctrl_sra;
+                end
+                f3_or: begin
+                    ALUCtrl_a = ctrl_or;
+                end
+                f3_and: begin
+                    ALUCtrl_a = ctrl_and;
+                end
+                default: begin
+                    ALUCtrl_a = 4'b1111;
+                end
+            endcase
+        end
+        op_itype: begin
+            unique case(funct3_a) 
+                f3_math: begin
+                    ALUCtrl_a = ctrl_add; // There is no subi instruction (Use addi with negative immediate)
+                end
+                f3_xor: begin
+                    ALUCtrl_a = ctrl_xor;
+                end
+                f3_sr: begin
+                    ALUCtrl_a = ctrl_sra;
+                end
+                f3_or: begin
+                    ALUCtrl_a = ctrl_or;
+                end
+                f3_and: begin
+                    ALUCtrl_a = ctrl_and;
+                end
+                default: begin
+                    ALUCtrl_a = 4'b1111;
+                end
+            endcase
+        end
+        default: begin
+            ALUCtrl_a = 4'b1111;
+        end
+    endcase
 end
+
+always_comb begin // Decode ALU control signal for instr b
+    unique case(ALUOp_b) 
+        op_add: begin
+            ALUCtrl_b = ctrl_add;
+        end
+        op_sub: begin
+            ALUCtrl_b = ctrl_sub;
+        end
+        op_rtype: begin
+            unique case(funct3_b) 
+                f3_math: begin
+                    if (funct7_b == primary) begin
+                        ALUCtrl_b = ctrl_add;
+                    end else begin
+                        ALUCtrl_b = ctrl_sub;
+                    end
+                end
+                f3_xor: begin
+                    ALUCtrl_b = ctrl_xor;
+                end
+                f3_sr: begin
+                    ALUCtrl_b = ctrl_sra;
+                end
+                f3_or: begin
+                    ALUCtrl_b = ctrl_or;
+                end
+                f3_and: begin
+                    ALUCtrl_b = ctrl_and;
+                end
+                default: begin
+                    ALUCtrl_b = 4'b1111;
+                end
+            endcase
+        end
+        op_itype: begin
+            unique case(funct3_b) 
+                f3_math: begin
+                    ALUCtrl_b = ctrl_add; // There is no subi instruction (Use addi with negative immediate)
+                end
+                f3_xor: begin
+                    ALUCtrl_b = ctrl_xor;
+                end
+                f3_sr: begin
+                    ALUCtrl_b = ctrl_sra;
+                end
+                f3_or: begin
+                    ALUCtrl_b = ctrl_or;
+                end
+                f3_and: begin
+                    ALUCtrl_b = ctrl_and;
+                end
+                default: begin
+                    ALUCtrl_b = 4'b1111;
+                end
+            endcase
+        end
+        default: begin
+            ALUCtrl_b = 4'b1111;
+        end
+    endcase
+end
+
+always_ff @ (posedge clk) begin // Pass through, no physical register computation
+    if (reset) begin // If in reset, push zeros
+    	dispatch_reg_a.pc 		<= '0;
+        dispatch_reg_a.opcode	<= '0;
+        dispatch_reg_a.imm		<= '0;
+        
+        dispatch_reg_a.control.MemRead   <= '0;
+        dispatch_reg_a.control.MemtoReg  <= '0;
+        dispatch_reg_a.control.ALUOp     <= '0;
+        dispatch_reg_a.control.MemWrite  <= '0;
+        dispatch_reg_a.control.ALUSrc    <= '0;
+        dispatch_reg_a.control.RegWrite  <= '0;
+        
+        dispatch_reg_b.pc 		<= '0;
+        dispatch_reg_b.opcode	<= '0;
+        dispatch_reg_b.imm		<= '0;
+        
+        dispatch_reg_b.control.MemRead   <= '0;
+        dispatch_reg_b.control.MemtoReg  <= '0;
+        dispatch_reg_b.control.ALUOp     <= '0;
+        dispatch_reg_b.control.MemWrite  <= '0;
+        dispatch_reg_b.control.ALUSrc    <= '0;
+        dispatch_reg_b.control.RegWrite  <= '0;
+        
+    end else begin
+        dispatch_reg_a.pc 		<= rename_reg_a.pc;
+        dispatch_reg_a.opcode	<= rename_reg_a.opcode;
+        dispatch_reg_a.imm		<= rename_reg_a.imm;
+        dispatch_reg_a.control	<= rename_reg_a.control;
+        
+        dispatch_reg_b.pc 		<= rename_reg_b.pc;
+        dispatch_reg_b.opcode	<= rename_reg_b.opcode;
+        dispatch_reg_b.imm		<= rename_reg_b.imm;
+        dispatch_reg_b.control	<= rename_reg_b.control;
+	end
+end
+
+always_ff @ (posedge clk) begin	// Push new physical register addresses to pipeline registers
+    if (reset) begin // If in reset, push zeros
+        dispatch_reg_a.rd		<= '0;
+        dispatch_reg_a.rd_old	<= '0;
+        dispatch_reg_a.rs1		<= '0;
+        dispatch_reg_a.rs2		<= '0;
+        
+        dispatch_reg_b.rd		<= '0;
+        dispatch_reg_b.rd_old	<= '0;
+        dispatch_reg_b.rs1		<= '0;
+        dispatch_reg_b.rs2		<= '0;
+        
+        dispatch_reg_a.ALUCtrl  <= '0;
+        dispatch_reg_b.ALUCtrl  <= '0;
+    end else begin
+        dispatch_reg_a.rd		<= rd_a_phy;
+        dispatch_reg_a.rd_old	<= rd_a_phy_old;
+        dispatch_reg_a.rs1		<= rs1_a_phy;
+        dispatch_reg_a.rs2		<= rs2_a_phy;
+        
+        dispatch_reg_b.rd		<= rd_b_phy;
+        dispatch_reg_b.rd_old	<= rd_b_phy_old;
+        dispatch_reg_b.rs1		<= rs1_b_phy;
+        dispatch_reg_b.rs2		<= rs2_b_phy;
+        
+        dispatch_reg_a.ALUCtrl  <= ALUCtrl_a;
+        
+        dispatch_reg_b.ALUCtrl  <= ALUCtrl_b;
+	end
+end
+
+property valid_ALUCtrl_a; // Check that the ALU control signal decode (second stage) does not produce an invalid control signal because of garbage input
+    @(posedge clk) disable iff (reset)
+    (ALUCtrl_a != 4'b1111);
+endproperty
+
+assert property (valid_ALUCtrl_a);
+
+property valid_ALUCtrl_b; // Check that the ALU control signal decode (second stage) does not produce an invalid control signal because of garbage input
+    @(posedge clk) disable iff (reset)
+    (ALUCtrl_b != 4'b1111);
+endproperty
+
+assert property (valid_ALUCtrl_b);
+
 endmodule
