@@ -103,10 +103,6 @@ typedef struct {
     logic valid;
 } aluOutStruct;
 
-typedef struct {
-    logic MemWrite;
-    logic MemRead;
-} memFlagsStruct;
 
 typedef struct {
 	logic [31:0] addr;
@@ -130,6 +126,7 @@ typedef struct {
 	logic [5:0] rd; // 6 bit physical addressing
 	logic [5:0] rd_old; // This is needed by the ROB to tell the rename stage to put this register in the free pool upon retire
     logic [31:0] result;
+    logic [31:0] mem_data;
     ctrlStruct control;
 } completeStruct;
 
@@ -169,6 +166,7 @@ typedef struct {
     logic [5:0] rd; // 6 bit physical addressing
     logic [5:0] rd_old; // This is needed by the ROB to tell the rename stage to put this register in the free pool upon retire
     logic [31:0] result;
+    logic [31:0] mem_data;
     ctrlStruct control;
 } robEntryStruct;
 
