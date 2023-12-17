@@ -4,56 +4,68 @@ module regfile import typedefs::*; ( // Three ports for three issue, may need to
 input logic clk,
 input logic reset,
 
-input regReqStruct request_a,
-input regReqStruct request_b,
-input regReqStruct request_c,
+input regReqStruct request_a, // For dispatch read
+input regReqStruct request_b, // For dispatch read
+input regReqStruct request_c, // For retire writeback
+input regReqStruct request_d, // For retire writeback
 
 output regRespStruct response_a,
 output regRespStruct response_b,
-output regRespStruct response_c
+output regRespStruct response_c,
+output regRespStruct response_d
 );
 
 // Local signals
 logic RegWrite_a;
 logic RegWrite_b;
 logic RegWrite_c;
+logic RegWrite_d;
 
 logic [6:0] rs1_a;
 logic [6:0] rs1_b;
 logic [6:0] rs1_c;
+logic [6:0] rs1_d;
 
 logic [6:0] rs2_a;
 logic [6:0] rs2_b;
 logic [6:0] rs2_c;
+logic [6:0] rs2_d;
 
 logic [6:0] rd_a;
 logic [6:0] rd_b;
 logic [6:0] rd_c;
+logic [6:0] rd_d;
 
 logic [31:0] wr_data_a;
 logic [31:0] wr_data_b;
 logic [31:0] wr_data_c;
+logic [31:0] wr_data_d;
 
 // Parse structs into local signals
 assign RegWrite_a = request_a.RegWrite;
 assign RegWrite_b = request_b.RegWrite;
 assign RegWrite_c = request_c.RegWrite;
+assign RegWrite_d = request_d.RegWrite;
 
 assign rs1_a = request_a.rs1;
 assign rs1_b = request_b.rs1;
 assign rs1_c = request_c.rs1;
+assign rs1_d = request_d.rs1;
 
 assign rs2_a = request_a.rs2;
 assign rs2_b = request_b.rs2;
 assign rs2_c = request_c.rs2;
+assign rs2_d = request_d.rs2;
 
 assign rd_a = request_a.rd;
 assign rd_b = request_b.rd;
 assign rd_c = request_c.rd;
+assign rd_d = request_d.rd;
 
 assign wr_data_a = request_a.wr_data;
 assign wr_data_b = request_b.wr_data;
 assign wr_data_c = request_c.wr_data;
+assign wr_data_d = request_d.wr_data;
 
 // Declare Regfile
 logic [31:0] registers [63:0];
@@ -83,7 +95,14 @@ always_ff @ (posedge clk) begin
 		// Port c
 		if (RegWrite_c) begin
 			if (rd_b != '0) begin // Prevent writing to x0
-				registers[rd_b] <= wr_data_c;
+				registers[rd_c] <= wr_data_c;
+			end
+		end
+		
+		// Port c
+		if (RegWrite_d) begin
+			if (rd_d != '0) begin // Prevent writing to x0
+				registers[rd_d] <= wr_data_d;
 			end
 		end
 	end
@@ -96,6 +115,8 @@ always_comb begin // Non-clocked reads, need to put reads into registers on the 
 	response_b.rs2_data = registers[rs2_b];
 	response_c.rs1_data = registers[rs1_c];
     response_c.rs2_data = registers[rs2_c];  
+    response_d.rs1_data = registers[rs1_d];
+    response_d.rs2_data = registers[rs2_d];
 end
 
 // Physical register 0 must always be tied to ground
@@ -121,14 +142,6 @@ property req_b_read_only;
 endproperty
 
 assert property(req_b_read_only);
-
-// Request port c is not wired to a commit stage and should only read
-property req_c_read_only;
-    @(posedge clk)
-    (RegWrite_c == '0);
-endproperty
-
-assert property(req_c_read_only);
 
 endmodule
 		
