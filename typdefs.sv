@@ -170,6 +170,11 @@ typedef struct {
     ctrlStruct control;
 } robEntryStruct;
 
-
+typedef struct {
+    logic valid1;
+    logic valid2;
+    logic [5:0] reg1;
+    logic [5:0] reg2;
+} freeRegStruct;
 
 endpackage : typedefs

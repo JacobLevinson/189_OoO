@@ -96,7 +96,9 @@ always_ff @ (posedge clk) begin
         // retire signals - just send the to entries out if they are ready
         if (rob_table[rob_ptr].complete) begin
             rob_output1 <= rob_table[rob_ptr];
+            rob_table[rob_ptr].valid <= 0;
             if(rob_table[rob_ptr+1].complete) begin
+                rob_table[rob_ptr+1].valid <= 0;
                 rob_output2 <= rob_table[rob_ptr+1];
                 rob_ptr <= rob_ptr + 2;
             end else begin
