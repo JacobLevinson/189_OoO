@@ -151,11 +151,13 @@ typedef struct {
     logic [5:0] destReg1;
     logic [5:0] destRegOld1;
     logic [5:0] robNum1;
+    ctrlStruct control1;
     logic [31:0] pc1;
     logic valid1;
     logic [5:0] destReg2;
     logic [5:0] destRegOld2;
     logic [5:0] robNum2;
+    ctrlStruct control1;
     logic [31:0] pc2;
     logic valid2;
 } robDispatchStruct;
@@ -167,7 +169,7 @@ typedef struct {
     logic [5:0] rd_old; // This is needed by the ROB to tell the rename stage to put this register in the free pool upon retire
     logic [31:0] result;
     ctrlStruct control;
-} robEntry;
+} robEntryStruct;
 
 
 
