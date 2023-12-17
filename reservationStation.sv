@@ -6,9 +6,8 @@ input logic reset,
 input rsEntry rsLine_a,
 input rsEntry rsLine_b,
 input logic[63:0] phy_reg_rdy,
-input fuRdyStruct fuRdy,
 
-input forwardingStruct completeForward,
+//input forwardingStruct completeForward,
 //input logic [15:0] robFree,
 
 // These are wired to the regfile
@@ -42,6 +41,8 @@ always_ff @(posedge clk) begin
             rsTable[i].valid    <= '0;
             rsTable[i].src1rdy  <= '0;
             rsTable[i].src2rdy  <= '0;
+            rsTable[i].src1val  <= '0;
+            rsTable[i].src2val  <= '0;
             rsTable[i].fu       <= '0;
             rsTable[i].robNum   <= '0;
             rsTable[i].instruction.pc       <= '0;
@@ -87,7 +88,7 @@ assign validity = {rsTable[15].valid, rsTable[14].valid, rsTable[13].valid, rsTa
                    rsTable[7].valid, rsTable[5].valid, rsTable[5].valid, rsTable[4].valid, 
                    rsTable[3].valid, rsTable[2].valid, rsTable[1].valid, rsTable[0].valid};
 
-logic [4:0] issue [2:0];
+logic [3:0] issue [2:0];
 
 integer j;
 always_comb begin 
@@ -134,19 +135,18 @@ always_comb begin
         end else begin
             issue[j] = '1;
         end
-        // These will go to read the registers
-        reg_request[j].RegWrite = '0; // No writing allowed outside of retire stage
-        reg_request[j].rs1      = rsTable[issue[j][3:0]].instruction.rs1;
-        reg_request[j].rs2      = rsTable[issue[j][3:0]].instruction.rs2;
-        reg_request[j].rd       = '0; // No writing allowed outside of retire stage
-        reg_request[j].wr_data  = '0; // No writing allowed outside of retire stage
     end
 end
         
+fuRdyStruct fuRdy;
+
+assign fuRdy.alu1 = '1; // Can always issue to alu FUs because they are only 1 cycle
+assign fuRdy.alu2 = '1;
 
 always_ff @(posedge clk) begin // Issue logic
     if (reset) begin
         rs_idx <= '0;
+        cycle_counter <= '0;
     end else begin
         if (issue[0] != 5'b1) begin // Checks that we found a valid entry
             issue0.valid    <= rsTable[issue[0][3:0]].valid;
@@ -154,8 +154,8 @@ always_ff @(posedge clk) begin // Issue logic
             issue0.pc       <= rsTable[issue[0][3:0]].instruction.pc;
             issue0.rd       <= rsTable[issue[0][3:0]].instruction.rd;
             issue0.rd_old   <= rsTable[issue[0][3:0]].instruction.rd_old;
-            issue0.rs1      <= reg_response[0].rs1_data; // 32 bit data
-            issue0.rs2      <= reg_response[0].rs2_data; // 32 bit data
+            issue0.rs1      <= rsTable[issue[0][3:0]].src1val;
+            issue0.rs2      <= rsTable[issue[0][3:0]].src1val;
             issue0.imm      <= rsTable[issue[0][3:0]].instruction.imm;
             issue0.ALUCtrl  <= rsTable[issue[0][3:0]].instruction.ALUCtrl;
             issue0.control  <= rsTable[issue[0][3:0]].instruction.control;
@@ -166,8 +166,8 @@ always_ff @(posedge clk) begin // Issue logic
             issue1.pc       <= rsTable[issue[1][3:0]].instruction.pc;
             issue1.rd       <= rsTable[issue[1][3:0]].instruction.rd;
             issue1.rd_old   <= rsTable[issue[1][3:0]].instruction.rd_old;
-            issue1.rs1      <= reg_response[1].rs1_data; // 32 bit data
-            issue1.rs2      <= reg_response[1].rs2_data; // 32 bit data
+            issue1.rs1      <= rsTable[issue[1][3:0]].src1val;
+            issue1.rs2      <= rsTable[issue[1][3:0]].src2val;
             issue1.imm      <= rsTable[issue[1][3:0]].instruction.imm;
             issue1.ALUCtrl  <= rsTable[issue[1][3:0]].instruction.ALUCtrl;
             issue1.control  <= rsTable[issue[1][3:0]].instruction.control;
@@ -179,19 +179,27 @@ always_ff @(posedge clk) begin // Issue logic
                 issue2.pc       <= rsTable[issue[2][3:0]].instruction.pc;
                 issue2.rd       <= rsTable[issue[2][3:0]].instruction.rd;
                 issue2.rd_old   <= rsTable[issue[2][3:0]].instruction.rd_old;
-                issue2.rs1      <= reg_response[2].rs1_data; // 32 bit data
-                issue2.rs2      <= reg_response[2].rs2_data; // 32 bit data
+                issue2.rs1      <= rsTable[issue[2][3:0]].src1val;
+                issue2.rs2      <= rsTable[issue[2][3:0]].src2val;
                 issue2.imm      <= rsTable[issue[2][3:0]].instruction.imm;
                 issue2.ALUCtrl  <= rsTable[issue[2][3:0]].instruction.ALUCtrl;
                 issue2.control  <= rsTable[issue[2][3:0]].instruction.control;
             end 
             // Otherwise, do not issue and hold previous issue in registers
         end
+        
+        if (fuRdy.mem) begin
+            if (issue[1] != 5'b1) begin // Valid instruction
+                fuRdy.mem <= '0; // Not ready
+        end else begin
+            fuRdy.mem <= '1; // Always 1 unless just used
+        end
     end
 end
-            
 
 endmodule
+
+
 /*
 	// Dsipatch stage
 
@@ -199,13 +207,13 @@ endmodule
 
 	// Check if there is at least 2 free spots in the ROB by checking if there's at least 2 1's in robFree
 
-//	if($countones(robFree) < 2) begin // or other stall signals, we will wrap the rest of our code in this if statement
-//		//STALL
-//	end
+	if($countones(robFree) < 2) begin // or other stall signals, we will wrap the rest of our code in this if statement
+		//STALL
+	end
 	
 	// Find the first free spot in ROB
 	// Find the MSB that is set to 1
-	automatic integer temp = 0;
+	automatic int temp = 0;
 	for (int i = 15; i >= 0; i--) begin
 		if (robFree[i] == 1'b1) begin
 			firstRobFree <= i[3:0];

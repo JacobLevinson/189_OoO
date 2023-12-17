@@ -5,8 +5,7 @@ input logic clk,
 input logic reset,
 input instStruct rename_reg_a,
 input instStruct rename_reg_b,
-//input logic [5:0] free_reg_a, // Note: Need to code this logic still
-//input logic [5:0] free_reg_b,
+input freeRegStruct free_regs,
 output dispatchStruct dispatch_reg_a,
 output dispatchStruct dispatch_reg_b
 );
@@ -192,7 +191,25 @@ always_ff @ (posedge clk) begin
 			end
 			default: begin
 			end
-		endcase
+        endcase
+		
+		if (free_regs.valid1 && free_regs.valid2) begin
+		  free_pool_ptr_tail <= free_pool_ptr_tail + 2'b10;
+		  
+		  free_pool[free_pool_ptr_tail] <= free_regs.reg1;
+		  free_pool[free_pool_ptr_tail+1'b1] <= free_regs.reg2;
+		end else if (free_regs.valid1 && !free_regs.valid2) begin 
+		  free_pool_ptr_tail <= free_pool_ptr_tail + 2'b01;
+		  
+		  free_pool[free_pool_ptr_tail] <= free_regs.reg1;
+		end else if (!free_regs.valid1 && free_regs.valid2) begin
+		  free_pool_ptr_tail <= free_pool_ptr_tail + 2'b01;
+		  
+		  free_pool[free_pool_ptr_tail] <= free_regs.reg2;
+	   end else begin
+	       // Do nothing
+	   end
+		
 	end
 end
 
