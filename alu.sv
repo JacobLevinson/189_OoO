@@ -19,7 +19,7 @@ parameter ctrl_sub 	= 4'b0110;
 parameter ctrl_xor 	= 4'b0011;
 parameter ctrl_sra	= 4'b1110;
 
-logic inA, inB;
+logic [31:0] inA, inB;
 assign inA = aluIn.rs1;
 assign inB = aluIn.ALUSrc ? aluIn.imm : aluIn.rs2;
 
