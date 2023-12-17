@@ -78,14 +78,7 @@ always_comb begin
         rsLine_a.src2rdy        = rsLine_a.instruction.control.ALUSrc ? 1'b1 : phy_reg_rdy[dispatch_reg_a.rs2]; // Will be updated further in RS table
         // This line checks that if we are to use an immediate, then ignore what is in the rs2 field for register readiness
         rsLine_a.robNum         = rs_rob_ptr;
-    
-        rsLine_b.valid          = 1'b1;
-        rsLine_b.instruction    = dispatch_reg_b;
-        rsLine_b.src1rdy        = phy_reg_rdy[dispatch_reg_b.rs1]; // Will be updated further in RS table
-        rsLine_b.src2rdy        = rsLine_b.instruction.control.ALUSrc ? 1'b1 : phy_reg_rdy[dispatch_reg_b.rs2]; // Will be updated further in RS table
-        // This line checks that if we are to use an immediate, then ignore what is in the rs2 field for register readiness
-        rsLine_b.robNum         = rs_rob_ptr + 1'b1;
-     end else begin
+    end else begin
         rsLine_a.valid          = '0;
         rsLine_a.instruction.pc       = '0;
         rsLine_a.instruction.opcode   = '0;
@@ -104,7 +97,15 @@ always_comb begin
         rsLine_a.src1rdy        = '0;
         rsLine_a.src2rdy        = '0;
         rsLine_a.robNum         = '0;
-    
+    end
+    if (dispatch_reg_b.opcode) begin
+        rsLine_b.valid          = 1'b1;
+        rsLine_b.instruction    = dispatch_reg_b;
+        rsLine_b.src1rdy        = phy_reg_rdy[dispatch_reg_b.rs1]; // Will be updated further in RS table
+        rsLine_b.src2rdy        = rsLine_b.instruction.control.ALUSrc ? 1'b1 : phy_reg_rdy[dispatch_reg_b.rs2]; // Will be updated further in RS table
+        // This line checks that if we are to use an immediate, then ignore what is in the rs2 field for register readiness
+        rsLine_b.robNum         = rs_rob_ptr + 1'b1;
+     end else begin
         rsLine_b.valid          = '0;
         rsLine_b.instruction.pc       = '0;
         rsLine_b.instruction.opcode   = '0;
