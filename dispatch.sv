@@ -12,8 +12,8 @@ output logic[63:0] phy_reg_rdy,
 output regReqStruct reg_request [1:0], // Combinational
 
 // These are wired from the regfile
-input regRespStruct reg_response [1:0] // Combinational
-// ROB register freeing/fowarding -> Must be a wire on the complete/ROB side
+input regRespStruct reg_response [1:0], // Combinational
+output robDispatchStruct robDispatch
 );
 
 logic[3:0] rs_rob_ptr; // Assigns the RS and ROB positions
@@ -75,18 +75,43 @@ always_comb begin // Assign the FUs
     end
 end
 
-always_comb begin
+always_comb begin // Request to registers
+    if (dispatch_reg_a.opcode) begin
+        reg_request[0].RegWrite = '0;
+        reg_request[0].rs1 = dispatch_reg_a.rs1;
+        reg_request[0].rs2 = dispatch_reg_a.rs2;
+        reg_request[0].rd  = dispatch_reg_a.rd;
+        reg_request[0].wr_data = '0;
+    end else begin
+        reg_request[0].RegWrite = '0;
+        reg_request[0].rs1 = '0;
+        reg_request[0].rs2 = '0;
+        reg_request[0].rd  = '0;
+        reg_request[0].wr_data = '0;
+    end
+    
+    if (dispatch_reg_b.opcode) begin
+        reg_request[1].RegWrite = '0;
+        reg_request[1].rs1 = dispatch_reg_b.rs1;
+        reg_request[1].rs2 = dispatch_reg_b.rs2;
+        reg_request[1].rd  = dispatch_reg_b.rd;
+        reg_request[1].wr_data = '0;
+    end else begin  
+        reg_request[1].RegWrite = '0;
+        reg_request[1].rs1 = '0;
+        reg_request[1].rs2 = '0;
+        reg_request[1].rd  = '0;
+        reg_request[1].wr_data = '0;
+    end
+end
+
+always_comb begin // Wire to reservation station
     if (dispatch_reg_a.opcode) begin
         rsLine_a.valid          = 1'b1;
         rsLine_a.instruction    = dispatch_reg_a;
         rsLine_a.src1rdy        = phy_reg_rdy[dispatch_reg_a.rs1]; // Will be updated further in RS table
         rsLine_a.src2rdy        = rsLine_a.instruction.control.ALUSrc ? 1'b1 : phy_reg_rdy[dispatch_reg_a.rs2]; // Will be updated further in RS table
         // This line checks that if we are to use an immediate, then ignore what is in the rs2 field for register readiness
-        reg_request[0].RegWrite = '0;
-        reg_request[0].rs1 = dispatch_reg_a.rs1;
-        reg_request[0].rs2 = dispatch_reg_a.rs2;
-        reg_request[0].rd  = dispatch_reg_a.rd;
-        reg_request[0].wr_data = '0;
         rsLine_a.src1val        = reg_response[0].rs1_data;
         rsLine_a.src2val        = reg_response[0].rs2_data;
         rsLine_a.robNum         = rs_rob_ptr;
@@ -106,30 +131,20 @@ always_comb begin
         rsLine_a.instruction.control.MemWrite = '0;
         rsLine_a.instruction.control.ALUSrc   = '0;
         rsLine_a.instruction.control.RegWrite = '0;   
+        
         rsLine_a.src1rdy        = '0;
-        rsLine_a.src2rdy        = '0;
-        rsLine_a.robNum         = '0;
-
-        //reg req
-        reg_request[0].RegWrite = '0;
-        reg_request[0].rs1 = '0;
-        reg_request[0].rs2 = '0;
-        reg_request[0].rd  = '0;
-        reg_request[0].wr_data = '0;
+        rsLine_a.src2rdy        = '0;        
         rsLine_a.src1val        = '0;
         rsLine_a.src2val        = '0;
+        rsLine_a.robNum         = '0;
     end
+    
     if (dispatch_reg_b.opcode) begin
         rsLine_b.valid          = 1'b1;
         rsLine_b.instruction    = dispatch_reg_b;
         rsLine_b.src1rdy        = phy_reg_rdy[dispatch_reg_b.rs1]; // Will be updated further in RS table
         rsLine_b.src2rdy        = rsLine_b.instruction.control.ALUSrc ? 1'b1 : phy_reg_rdy[dispatch_reg_b.rs2]; // Will be updated further in RS table
         // This line checks that if we are to use an immediate, then ignore what is in the rs2 field for register readiness
-        reg_request[1].RegWrite = '0;
-        reg_request[1].rs1 = dispatch_reg_b.rs1;
-        reg_request[1].rs2 = dispatch_reg_b.rs2;
-        reg_request[1].rd  = dispatch_reg_b.rd;
-        reg_request[1].wr_data = '0;
         rsLine_a.src1val        = reg_response[1].rs1_data;
         rsLine_a.src2val        = reg_response[1].rs2_data;
 
@@ -155,14 +170,53 @@ always_comb begin
         rsLine_b.robNum         = '0;
 
         //reg req
-        reg_request[1].RegWrite = '0;
-        reg_request[1].rs1 = '0;
-        reg_request[1].rs2 = '0;
-        reg_request[1].rd  = '0;
-        reg_request[1].wr_data = '0;
         rsLine_b.src1val        = '0;
         rsLine_b.src2val        = '0;
     end
+end
+
+always_comb begin // Wire to reorder buffer
+    if (dispatch_reg_a.opcode) begin
+        robDispatch.destReg1 = dispatch_reg_a.rd;
+        robDispatch.destRegOld1 = dispatch.rd_old;
+        robDispatch.robNum1 = rs_rob_ptr;
+        robDispatch.control1 = dispatch_reg_a.control;
+        robDispatch.pc1 = dispatch_reg_a.pc;
+        robDispatch.valid1 = '1;
+    end else begin
+        robDispatch.destReg1 = '0;
+        robDispatch.destRegOld1 = '0;
+        robDispatch.robNum1 = '0;
+        robDispatch.control1.MemRead = '0;
+        robDispatch.control1.MemtoReg = '0;
+        robDispatch.control1.ALUOp = '0;
+        robDispatch.control1.MemWrite = '0;
+        robDispatch.control1.ALUSrc = '0;
+        robDispatch.control1.RegWrite = '0;
+        robDispatch.pc1 = '0;
+        robDispatch.valid1 = '0;
+    end
+    
+    if (dispatch_reg_a.opcode) begin
+        robDispatch.destReg2 = dispatch_reg_b.rd;
+        robDispatch.destRegOld2 = dispatch.rd_old;
+        robDispatch.robNum2 = rs_rob_ptr;
+        robDispatch.control2 = dispatch_reg_b.control;
+        robDispatch.pc2 = dispatch_reg_b.pc;
+        robDispatch.valid2 = '1;
+    end else begin
+        robDispatch.destReg2 = '0;
+        robDispatch.destRegOld2 = '0;
+        robDispatch.robNum2 = '0;
+        robDispatch.control2.MemRead = '0;
+        robDispatch.control2.MemtoReg = '0;
+        robDispatch.control2.ALUOp = '0;
+        robDispatch.control2.MemWrite = '0;
+        robDispatch.control2.ALUSrc = '0;
+        robDispatch.control2.RegWrite = '0;
+        robDispatch.pc2 = '0;
+        robDispatch.valid2 = '0;
+    end    
 end
         
 endmodule
