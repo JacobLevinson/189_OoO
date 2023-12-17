@@ -48,7 +48,9 @@ typedef struct {
     dispatchStruct instruction;
     // Flags
     logic src1rdy;
+    logic [31:0] src1val;
     logic src2rdy;
+    logic [31:0] src2val;
     logic [1:0] fu;
     logic [3:0] robNum;
 } rsEntry;
@@ -132,15 +134,6 @@ typedef struct {
 } completeStruct;
 
 
-
-typedef struct {
-    logic useBit;
-    instStruct instruction;
-    logic src1rdy;
-    logic src2rdy;
-    logic [1:0] fu;
-    logic [ROB_SIZE_BITS-1:0] robNum;
-} reservationStationEntry;
 
 typedef struct {
     logic valid1;
