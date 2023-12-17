@@ -8,8 +8,8 @@ module complete_rob import typedefs::*;(
     input completeStruct complete3,
     input robDispatchStruct dispatch,
     output forwardStruct forwarding,
-    output robEntryStruct rob_entry1, // Go to retire stage
-    output robEntryStruct rob_entry2
+    output robEntryStruct rob_output1, // Go to retire stage
+    output robEntryStruct rob_output2  // Go to retire stage
 );
 
 robEntryStruct rob_table [15:0];
@@ -44,11 +44,15 @@ always_comb begin // complete stage logic
     end
 end
 
+
+logic [3:0] rob_ptr;
+
 integer i;
 always_ff @ (posedge clk) begin
     if(reset) begin
         for (i = 0; i < 16; i = i + 1) begin 
             rob_table[i].valid <= 0;
+            rob_table[i].complete <= 0;
             rob_table[i].pc <= 0;
             rob_table[i].rd <= 0;
             rob_table[i].rd_old <= 0;
@@ -63,6 +67,7 @@ always_ff @ (posedge clk) begin
     end else begin
         if (dispatch.valid1) begin
             rob_table[dispatch.robNum1].valid <= 1;
+            rob_table[dispatch.robNum1].complete <= 0;
             rob_table[dispatch.robNum1].pc <= dispatch.pc1;
             rob_table[dispatch.robNum1].rd <= dispatch.destReg1;
             rob_table[dispatch.robNum1].rd_old <= dispatch.destRegOld1;
@@ -70,6 +75,7 @@ always_ff @ (posedge clk) begin
         end
         if (dispatch.valid2) begin
             rob_table[dispatch.robNum2].valid <= 1;
+            rob_table[dispatch.robNum2].complete <= 0;
             rob_table[dispatch.robNum2].pc <= dispatch.pc2;
             rob_table[dispatch.robNum2].rd <= dispatch.destReg2;
             rob_table[dispatch.robNum2].rd_old <= dispatch.destRegOld2;
@@ -77,12 +83,27 @@ always_ff @ (posedge clk) begin
         end
         if (complete1.valid) begin
             rob_table[complete1.robNum].result <= complete1.result;
+            rob_table[complete1.robNum].complete <= 1;
         end
         if (complete2.valid) begin
             rob_table[complete2.robNum].result <= complete2.result;
+            rob_table[complete2.robNum].complete <= 1;
         end
 
-        
+        // retire signals - just send the to entries out if they are ready
+        if (rob_table[rob_ptr].complete) begin
+            rob_output1 <= rob_table[rob_ptr];
+            if(rob_table[rob_ptr+1].complete) begin
+                rob_output2 <= rob_table[rob_ptr+1];
+                rob_ptr <= rob_ptr + 2;
+            end else begin
+                rob_ptr <= rob_ptr + 1;
+            end
+        end else begin
+            rob_output1.valid <= 0;
+            rob_output2.valid <= 0;
+            rob_ptr <= rob_ptr;
+        end
 
 
 
