@@ -57,6 +57,7 @@ always_ff @ (posedge clk) begin
             rob_table[i].rd <= 0;
             rob_table[i].rd_old <= 0;
             rob_table[i].result <= 0;
+            rob_table[i].mem_data <= 0;
             rob_table[i].control.MemRead  <= '0;
             rob_table[i].control.MemtoReg <= '0;
             rob_table[i].control.ALUOp    <= '0;
@@ -83,10 +84,12 @@ always_ff @ (posedge clk) begin
         end
         if (complete1.valid) begin
             rob_table[complete1.robNum].result <= complete1.result;
+            rob_table[complete1.robNum].mem_data <= complete1.mem_data;
             rob_table[complete1.robNum].complete <= 1;
         end
         if (complete2.valid) begin
             rob_table[complete2.robNum].result <= complete2.result;
+            rob_table[complete2.robNum].mem_data <= complete2.mem_data;
             rob_table[complete2.robNum].complete <= 1;
         end
 
