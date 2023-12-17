@@ -66,12 +66,28 @@ always_ff @ (posedge clk) begin
             rob_table[dispatch.robNum1].pc <= dispatch.pc1;
             rob_table[dispatch.robNum1].rd <= dispatch.destReg1;
             rob_table[dispatch.robNum1].rd_old <= dispatch.destRegOld1;
-            rob_table[dispatch.robNum1].result <= '0;
             rob_table[dispatch.robNum1].control <= dispatch.control1;
-            
-
+        end
+        if (dispatch.valid2) begin
+            rob_table[dispatch.robNum2].valid <= 1;
+            rob_table[dispatch.robNum2].pc <= dispatch.pc2;
+            rob_table[dispatch.robNum2].rd <= dispatch.destReg2;
+            rob_table[dispatch.robNum2].rd_old <= dispatch.destRegOld2;
+            rob_table[dispatch.robNum2].control <= dispatch.control2;
+        end
+        if (complete1.valid) begin
+            rob_table[complete1.robNum].result <= complete1.result;
+        end
+        if (complete2.valid) begin
+            rob_table[complete2.robNum].result <= complete2.result;
         end
 
+        
+
+
+
+
+    end
 
 end
 
