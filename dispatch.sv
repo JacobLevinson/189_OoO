@@ -8,6 +8,11 @@ input dispatchStruct dispatch_reg_b,
 output rsEntry rsLine_a,
 output rsEntry rsLine_b,
 output logic[63:0] phy_reg_rdy
+// These are wired to the regfile
+output regReqStruct reg_request [1:0], // Combinational
+
+// These are wired from the regfile
+input regRespStruct reg_response [1:0], // Combinational
 // ROB register freeing/fowarding -> Must be a wire on the complete/ROB side
 );
 
@@ -77,6 +82,13 @@ always_comb begin
         rsLine_a.src1rdy        = phy_reg_rdy[dispatch_reg_a.rs1]; // Will be updated further in RS table
         rsLine_a.src2rdy        = rsLine_a.instruction.control.ALUSrc ? 1'b1 : phy_reg_rdy[dispatch_reg_a.rs2]; // Will be updated further in RS table
         // This line checks that if we are to use an immediate, then ignore what is in the rs2 field for register readiness
+        reg_request[0].RegWrite = '0;
+        reg_request[0].rs1 = dispatch_reg_a.rs1;
+        reg_request[0].rs2 = dispatch_reg_a.rs2;
+        reg_request[0].rd  = dispatch_reg_a.rd;
+        reg_request[0].wr_data = '0;
+        rsLine_a.src1val        = reg_response[0].rs1_data;
+        rsLine_a.src2val        = reg_response[0].rs2_data;
         rsLine_a.robNum         = rs_rob_ptr;
     end else begin
         rsLine_a.valid          = '0;
@@ -97,6 +109,15 @@ always_comb begin
         rsLine_a.src1rdy        = '0;
         rsLine_a.src2rdy        = '0;
         rsLine_a.robNum         = '0;
+
+        //reg req
+        reg_request[0].RegWrite = '0;
+        reg_request[0].rs1 = '0;
+        reg_request[0].rs2 = '0;
+        reg_request[0].rd  = '0;
+        reg_request[0].wr_data = '0;
+        rsLine_a.src1val        = '0;
+        rsLine_a.src2val        = '0;
     end
     if (dispatch_reg_b.opcode) begin
         rsLine_b.valid          = 1'b1;
@@ -104,6 +125,14 @@ always_comb begin
         rsLine_b.src1rdy        = phy_reg_rdy[dispatch_reg_b.rs1]; // Will be updated further in RS table
         rsLine_b.src2rdy        = rsLine_b.instruction.control.ALUSrc ? 1'b1 : phy_reg_rdy[dispatch_reg_b.rs2]; // Will be updated further in RS table
         // This line checks that if we are to use an immediate, then ignore what is in the rs2 field for register readiness
+        reg_request[1].RegWrite = '0;
+        reg_request[1].rs1 = dispatch_reg_b.rs1;
+        reg_request[1].rs2 = dispatch_reg_b.rs2;
+        reg_request[1].rd  = dispatch_reg_b.rd;
+        reg_request[1].wr_data = '0;
+        rsLine_a.src1val        = reg_response[1].rs1_data;
+        rsLine_a.src2val        = reg_response[1].rs2_data;
+
         rsLine_b.robNum         = rs_rob_ptr + 1'b1;
      end else begin
         rsLine_b.valid          = '0;
@@ -124,6 +153,15 @@ always_comb begin
         rsLine_b.src1rdy        = '0;
         rsLine_b.src2rdy        = '0;
         rsLine_b.robNum         = '0;
+
+        //reg req
+        reg_request[1].RegWrite = '0;
+        reg_request[1].rs1 = '0;
+        reg_request[1].rs2 = '0;
+        reg_request[1].rd  = '0;
+        reg_request[1].wr_data = '0;
+        rsLine_b.src1val        = '0;
+        rsLine_b.src2val        = '0;
     end
 end
         

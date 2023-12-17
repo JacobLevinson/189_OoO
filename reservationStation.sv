@@ -8,7 +8,7 @@ input rsEntry rsLine_b,
 input logic[63:0] phy_reg_rdy,
 input fuRdyStruct fuRdy,
 
-//input forwardingStruct completeForward,
+input forwardingStruct completeForward,
 //input logic [15:0] robFree,
 
 // These are wired to the regfile

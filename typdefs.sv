@@ -138,10 +138,13 @@ typedef struct {
 typedef struct {
     logic valid1;
     logic valid2;
+    logic valid3;
     logic [5:0] reg1;
     logic [5:0] reg2;
+    logic [5:0] reg3;
     logic [31:0] val1;
     logic [31:0] val2;
+    logic [31:0] val3;
 } forwardingStruct;
 
 typedef struct {
