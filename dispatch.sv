@@ -7,12 +7,12 @@ input dispatchStruct dispatch_reg_a,
 input dispatchStruct dispatch_reg_b,
 output rsEntry rsLine_a,
 output rsEntry rsLine_b,
-output logic[63:0] phy_reg_rdy
+output logic[63:0] phy_reg_rdy,
 // These are wired to the regfile
 output regReqStruct reg_request [1:0], // Combinational
 
 // These are wired from the regfile
-input regRespStruct reg_response [1:0], // Combinational
+input regRespStruct reg_response [1:0] // Combinational
 // ROB register freeing/fowarding -> Must be a wire on the complete/ROB side
 );
 

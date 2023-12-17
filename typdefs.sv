@@ -160,6 +160,14 @@ typedef struct {
     logic valid2;
 } robDispatchStruct;
 
+typedef struct {
+    logic valid;
+    logic [31:0] pc;
+    logic [5:0] rd; // 6 bit physical addressing
+    logic [5:0] rd_old; // This is needed by the ROB to tell the rename stage to put this register in the free pool upon retire
+    logic [31:0] result;
+    ctrlStruct control;
+} robEntry;
 
 
 
