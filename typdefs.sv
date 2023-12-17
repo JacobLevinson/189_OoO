@@ -1,7 +1,7 @@
 `timescale 1ns/100ps
 
 package typedefs;
-parameter ROB_SIZE_BITS = 4;
+localparam ROB_SIZE_BITS = 4;
 typedef struct {
 	logic [31:0] inst_a;
 	logic [31:0] inst_b;
@@ -132,13 +132,11 @@ typedef struct {
 } completeStruct;
 
 
-parameter ROB_SIZE_BITS = 4;
 
 typedef struct {
-    logic use;
+    logic useBit;
     instStruct instruction;
     logic src1rdy;
-    logic src2rdy;
     logic src2rdy;
     logic [1:0] fu;
     logic [ROB_SIZE_BITS-1:0] robNum;
