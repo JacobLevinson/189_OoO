@@ -178,7 +178,7 @@ end
 always_comb begin // Wire to reorder buffer
     if (dispatch_reg_a.opcode) begin
         robDispatch.destReg1 = dispatch_reg_a.rd;
-        robDispatch.destRegOld1 = dispatch.rd_old;
+        robDispatch.destRegOld1 = dispatch_reg_a.rd_old;
         robDispatch.robNum1 = rs_rob_ptr;
         robDispatch.control1 = dispatch_reg_a.control;
         robDispatch.pc1 = dispatch_reg_a.pc;
@@ -199,7 +199,7 @@ always_comb begin // Wire to reorder buffer
     
     if (dispatch_reg_a.opcode) begin
         robDispatch.destReg2 = dispatch_reg_b.rd;
-        robDispatch.destRegOld2 = dispatch.rd_old;
+        robDispatch.destRegOld2 = dispatch_reg_b.rd_old;
         robDispatch.robNum2 = rs_rob_ptr;
         robDispatch.control2 = dispatch_reg_b.control;
         robDispatch.pc2 = dispatch_reg_b.pc;
