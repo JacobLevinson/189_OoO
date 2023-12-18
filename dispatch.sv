@@ -5,27 +5,43 @@ input clk,
 input reset,
 input dispatchStruct dispatch_reg_a,
 input dispatchStruct dispatch_reg_b,
-output rsEntry rsLine_a,
-output rsEntry rsLine_b,
-output logic[63:0] phy_reg_rdy,
-// These are wired to the regfile
-output regReqStruct reg_request [1:0], // Combinational
 
+input forwardingStruct forward_a,
+input forwardingStruct forward_b,
+input forwardingStruct forward_c,
+
+// These are wired to the regfile
+output regReqStruct reg_request_a, // Combinational
+output regReqStruct reg_request_b,
 // These are wired from the regfile
-input regRespStruct reg_response [1:0], // Combinational
-output robDispatchStruct robDispatch
+input regRespStruct reg_response_a, // Combinational
+input regRespStruct reg_response_b,
+
+output rsEntry rsLine_a, // Output to RS
+output rsEntry rsLine_b,
+output robDispatchStruct robDispatch_a, // Output to ROB
+output robDispatchStruct robDispatch_b
 );
 
 logic[3:0] rs_rob_ptr; // Assigns the RS and ROB positions
 logic fu_assignment; // Used to equitably assign FUs
 logic[1:0] fu_incr; // Flags used to increment the FU assignments
 
+logic[63:0] phy_reg_rdy;
+logic[31:0] forwarded_regs [63:0];
+logic[63:0] forward_valid;
+
+integer i;
 always_ff @(posedge clk) begin
     if (reset) begin
         rs_rob_ptr      <= '0;
         fu_assignment   <= '0;
-        
         phy_reg_rdy     <= '1;
+        
+        for (i = 0; i < 64; i = i + 1) begin
+            forwarded_regs[i] = '1;
+        end
+        forward_valid <= '0;
     end else begin
         if (dispatch_reg_a.opcode) begin // If opcode is valid
             rs_rob_ptr      <= rs_rob_ptr + 2; // Just going to assume that we'll never have to stall, add more entries to RS and ROB if we end up with issues
@@ -38,15 +54,33 @@ always_ff @(posedge clk) begin
                 phy_reg_rdy[dispatch_reg_b.rd] <= '0;
             end
         end
+        
+        if (forward_a.valid) begin
+            phy_reg_rdy[forward_a.reg_addr]      <= '1;
+            forwarded_regs[forward_a.reg_addr]   <= forward_a.data;
+            forward_valid[forward_a.reg_addr]    <= '1;
+        end
+        
+        if (forward_b.valid) begin
+            phy_reg_rdy[forward_b.reg_addr]      <= '1;
+            forwarded_regs[forward_b.reg_addr]   <= forward_b.data;
+            forward_valid[forward_b.reg_addr]    <= '1;
+        end
+        
+        if (forward_c.valid) begin
+            phy_reg_rdy[forward_c.reg_addr]      <= '1;
+            forwarded_regs[forward_c.reg_addr]   <= forward_c.data;
+            forward_valid[forward_c.reg_addr]    <= '1;
+        end
     end
 end
 
 always_comb begin // Assign the FUs
     if (dispatch_reg_a.opcode) begin
-        if (dispatch_reg_a.control.MemRead || dispatch_reg_a.control.MemWrite || dispatch_reg_a.control.MemtoReg) begin 
-            // If the memory control signals indicate a memory operation
+        if (dispatch_reg_a.control.MemRead || dispatch_reg_a.control.MemtoReg) begin 
+            // If the memory control signals indicate a memory read operation (stores only take 1 cycle)
             rsLine_a.fu = 2'b10; // Memory FU
-            if (dispatch_reg_b.control.MemRead || dispatch_reg_a.control.MemWrite || dispatch_reg_a.control.MemtoReg) begin
+            if (dispatch_reg_b.control.MemRead || dispatch_reg_a.control.MemtoReg) begin
                 // If the memory control signals indicate a memory operation
                 rsLine_b.fu = 2'b10; // Memory FU
                 fu_incr = 2'b00;
@@ -58,8 +92,8 @@ always_comb begin // Assign the FUs
         end else begin
             rsLine_a.fu = fu_assignment; 
             // Regular ALU operation
-            if (dispatch_reg_b.control.MemRead || dispatch_reg_a.control.MemWrite || dispatch_reg_a.control.MemtoReg) begin
-                // If the memory control signals indicate a memory operation
+            if (dispatch_reg_b.control.MemRead || dispatch_reg_a.control.MemtoReg) begin
+                // If the memory control signals indicate a memory operation (stores only take 1 cycle)
                 rsLine_b.fu = 2'b10; // Memory FU
                 fu_incr = 2'b01;
             end else begin 
@@ -75,33 +109,33 @@ always_comb begin // Assign the FUs
     end
 end
 
-always_comb begin // Request to registers
+always_comb begin // Read requests to registers
     if (dispatch_reg_a.opcode) begin
-        reg_request[0].RegWrite = '0;
-        reg_request[0].rs1 = dispatch_reg_a.rs1;
-        reg_request[0].rs2 = dispatch_reg_a.rs2;
-        reg_request[0].rd  = dispatch_reg_a.rd;
-        reg_request[0].wr_data = '0;
-    end else begin
-        reg_request[0].RegWrite = '0;
-        reg_request[0].rs1 = '0;
-        reg_request[0].rs2 = '0;
-        reg_request[0].rd  = '0;
-        reg_request[0].wr_data = '0;
+        reg_request_a.RegWrite  = '0; // Read only
+        reg_request_a.rs1       = dispatch_reg_a.rs1;
+        reg_request_a.rs2       = dispatch_reg_a.rs2;
+        reg_request_a.rd        = dispatch_reg_a.rd;
+        reg_request_a.wr_data   = '0;
+    end else begin // No instruction
+        reg_request_a.RegWrite  = '0;
+        reg_request_a.rs1       = '0;
+        reg_request_a.rs2       = '0;
+        reg_request_a.rd        = '0;
+        reg_request_a.wr_data   = '0;
     end
     
     if (dispatch_reg_b.opcode) begin
-        reg_request[1].RegWrite = '0;
-        reg_request[1].rs1 = dispatch_reg_b.rs1;
-        reg_request[1].rs2 = dispatch_reg_b.rs2;
-        reg_request[1].rd  = dispatch_reg_b.rd;
-        reg_request[1].wr_data = '0;
-    end else begin  
-        reg_request[1].RegWrite = '0;
-        reg_request[1].rs1 = '0;
-        reg_request[1].rs2 = '0;
-        reg_request[1].rd  = '0;
-        reg_request[1].wr_data = '0;
+        reg_request_b.RegWrite  = '0; // Read only
+        reg_request_b.rs1       = dispatch_reg_b.rs1;
+        reg_request_b.rs2       = dispatch_reg_b.rs2;
+        reg_request_b.rd        = dispatch_reg_b.rd;
+        reg_request_b.wr_data   = '0;
+    end else begin // No instruction
+        reg_request_b.RegWrite  = '0;
+        reg_request_b.rs1       = '0;
+        reg_request_b.rs2       = '0;
+        reg_request_b.rd        = '0;
+        reg_request_b.wr_data   = '0;
     end
 end
 
@@ -109,14 +143,44 @@ always_comb begin // Wire to reservation station
     if (dispatch_reg_a.opcode) begin
         rsLine_a.valid          = 1'b1;
         rsLine_a.instruction    = dispatch_reg_a;
-        rsLine_a.src1rdy        = phy_reg_rdy[dispatch_reg_a.rs1]; // Will be updated further in RS table
-        rsLine_a.src2rdy        = rsLine_a.instruction.control.ALUSrc ? 1'b1 : phy_reg_rdy[dispatch_reg_a.rs2]; // Will be updated further in RS table
-        // This line checks that if we are to use an immediate, then ignore what is in the rs2 field for register readiness
-        rsLine_a.src1val        = reg_response[0].rs1_data;
-        rsLine_a.src2val        = reg_response[0].rs2_data;
+        
+        if (forward_valid[dispatch_reg_a.rs1]) begin
+            rsLine_a.rs1_rdy    = phy_reg_rdy[dispatch_reg_a.rs1];
+            rsLine_a.rs1_data   = forwarded_regs[dispatch_reg_a.rs1];
+        end else if (forward_a.valid && dispatch_reg_a.rs1 == forward_a.reg_addr) begin
+            rsLine_a.rs1_rdy    = '1;
+            rsLine_a.rs1_data   = forward_a.data;
+        end else if (forward_b.valid && dispatch_reg_a.rs1 == forward_b.reg_addr) begin
+            rsLine_a.rs1_rdy    = '1;
+            rsLine_a.rs1_data   = forward_b.data;
+        end else if (forward_c.valid && dispatch_reg_a.rs1 == forward_c.reg_addr) begin
+            rsLine_a.rs1_rdy    = '1;
+            rsLine_a.rs1_data   = forward_c.data;
+        end else begin     
+            rsLine_a.rs1_rdy    = phy_reg_rdy[dispatch_reg_a.rs1];
+            rsLine_a.rs1_data   = reg_response_a.rs1_data;
+        end
+        
+        if (forward_valid[dispatch_reg_a.rs2]) begin
+            rsLine_a.rs2_rdy    = rsLine_a.instruction.control.ALUSrc ? 1'b1 : phy_reg_rdy[dispatch_reg_a.rs2];
+            rsLine_a.rs2_data   = forwarded_regs[dispatch_reg_a.rs2];
+        end else if (forward_a.valid && dispatch_reg_a.rs2 == forward_a.reg_addr) begin
+            rsLine_a.rs2_rdy    = '1;
+            rsLine_a.rs2_data   = forward_a.data;
+        end else if (forward_b.valid && dispatch_reg_a.rs2 == forward_b.reg_addr) begin
+            rsLine_a.rs2_rdy    = '1;
+            rsLine_a.rs2_data   = forward_b.data;
+        end else if (forward_c.valid && dispatch_reg_a.rs2 == forward_c.reg_addr) begin
+            rsLine_a.rs2_rdy    = '1;
+            rsLine_a.rs2_data   = forward_c.data;
+        end else begin     
+            rsLine_a.rs2_rdy    = rsLine_b.instruction.control.ALUSrc ? 1'b1 : phy_reg_rdy[dispatch_reg_a.rs2];
+            rsLine_a.rs2_data   = reg_response_a.rs1_data;
+        end
+        
         rsLine_a.robNum         = rs_rob_ptr;
     end else begin
-        rsLine_a.valid          = '0;
+        rsLine_a.valid          = '0;        
         rsLine_a.instruction.pc       = '0;
         rsLine_a.instruction.opcode   = '0;
         rsLine_a.instruction.rd       = '0;
@@ -130,24 +194,52 @@ always_comb begin // Wire to reservation station
         rsLine_a.instruction.control.ALUOp    = '0;
         rsLine_a.instruction.control.MemWrite = '0;
         rsLine_a.instruction.control.ALUSrc   = '0;
-        rsLine_a.instruction.control.RegWrite = '0;   
-        
-        rsLine_a.src1rdy        = '0;
-        rsLine_a.src2rdy        = '0;        
-        rsLine_a.src1val        = '0;
-        rsLine_a.src2val        = '0;
+        rsLine_a.instruction.control.RegWrite = '0;           
+        rsLine_a.rs1_rdy        = '0;
+        rsLine_a.rs2_rdy        = '0;        
+        rsLine_a.rs1_data       = '0;
+        rsLine_a.rs2_data       = '0;
         rsLine_a.robNum         = '0;
     end
     
     if (dispatch_reg_b.opcode) begin
         rsLine_b.valid          = 1'b1;
         rsLine_b.instruction    = dispatch_reg_b;
-        rsLine_b.src1rdy        = phy_reg_rdy[dispatch_reg_b.rs1]; // Will be updated further in RS table
-        rsLine_b.src2rdy        = rsLine_b.instruction.control.ALUSrc ? 1'b1 : phy_reg_rdy[dispatch_reg_b.rs2]; // Will be updated further in RS table
-        // This line checks that if we are to use an immediate, then ignore what is in the rs2 field for register readiness
-        rsLine_a.src1val        = reg_response[1].rs1_data;
-        rsLine_a.src2val        = reg_response[1].rs2_data;
-
+        
+        if (forward_valid[dispatch_reg_b.rs1]) begin // If stored in the forwarding buffer
+            rsLine_b.rs1_rdy    = (dispatch_reg_b.rs1 != dispatch_reg_a.rd) ? phy_reg_rdy[dispatch_reg_b.rs1] : '0;
+            rsLine_b.rs1_data   = forwarded_regs[dispatch_reg_b.rs1];
+        end else if (forward_a.valid && dispatch_reg_b.rs1 == forward_a.reg_addr) begin // Just forwarded this cycle
+            rsLine_b.rs1_rdy    = '1;
+            rsLine_b.rs1_data   = forward_a.data;
+        end else if (forward_b.valid && dispatch_reg_b.rs1 == forward_b.reg_addr) begin
+            rsLine_b.rs1_rdy    = '1;
+            rsLine_b.rs1_data   = forward_b.data;
+        end else if (forward_c.valid && dispatch_reg_b.rs1 == forward_c.reg_addr) begin
+            rsLine_b.rs1_rdy    = '1;
+            rsLine_b.rs1_data   = forward_c.data;
+        end else begin     
+            rsLine_b.rs1_rdy    = (dispatch_reg_b.rs1 != dispatch_reg_a.rd) ? phy_reg_rdy[dispatch_reg_b.rs1] : '0;
+            rsLine_b.rs1_data   = reg_response_b.rs1_data;
+        end
+        
+        if (forward_valid[dispatch_reg_b.rs2]) begin // If stored in the forwarding buffer
+            rsLine_b.rs2_rdy    = rsLine_b.instruction.control.ALUSrc ? 1'b1 : (dispatch_reg_b.rs2 != dispatch_reg_a.rd) ? phy_reg_rdy[dispatch_reg_b.rs2] : '0;
+            rsLine_b.rs2_data   = forwarded_regs[dispatch_reg_b.rs2];
+        end else if (forward_a.valid && dispatch_reg_b.rs2 == forward_a.reg_addr) begin // Just forwarded this cycle
+            rsLine_b.rs2_rdy    = '1;
+            rsLine_b.rs2_data   = forward_a.data;
+        end else if (forward_b.valid && dispatch_reg_b.rs2 == forward_b.reg_addr) begin
+            rsLine_b.rs2_rdy    = '1;
+            rsLine_b.rs2_data   = forward_b.data;
+        end else if (forward_c.valid && dispatch_reg_b.rs2 == forward_c.reg_addr) begin
+            rsLine_b.rs2_rdy    = '1;
+            rsLine_b.rs2_data   = forward_c.data;
+        end else begin     
+            rsLine_b.rs2_rdy    = rsLine_b.instruction.control.ALUSrc ? 1'b1 : (dispatch_reg_b.rs2 != dispatch_reg_a.rd) ? phy_reg_rdy[dispatch_reg_b.rs2] : '0;
+            rsLine_b.rs2_data   = reg_response_b.rs1_data;
+        end
+        
         rsLine_b.robNum         = rs_rob_ptr + 1'b1;
      end else begin
         rsLine_b.valid          = '0;
@@ -165,58 +257,70 @@ always_comb begin // Wire to reservation station
         rsLine_b.instruction.control.MemWrite = '0;
         rsLine_b.instruction.control.ALUSrc   = '0;
         rsLine_b.instruction.control.RegWrite = '0;  
-        rsLine_b.src1rdy        = '0;
-        rsLine_b.src2rdy        = '0;
+        rsLine_b.rs1_rdy        = '0;
+        rsLine_b.rs2_rdy        = '0;
+        rsLine_b.rs1_data       = '0;
+        rsLine_b.rs2_data       = '0;
         rsLine_b.robNum         = '0;
-
-        //reg req
-        rsLine_b.src1val        = '0;
-        rsLine_b.src2val        = '0;
     end
 end
 
 always_comb begin // Wire to reorder buffer
     if (dispatch_reg_a.opcode) begin
-        robDispatch.destReg1 = dispatch_reg_a.rd;
-        robDispatch.destRegOld1 = dispatch_reg_a.rd_old;
-        robDispatch.robNum1 = rs_rob_ptr;
-        robDispatch.control1 = dispatch_reg_a.control;
-        robDispatch.pc1 = dispatch_reg_a.pc;
-        robDispatch.valid1 = '1;
+        robDispatch_a.valid     = '1;
+        robDispatch_a.pc        = dispatch_reg_a.pc;
+        robDispatch_a.rd        = dispatch_reg_a.rd;
+        robDispatch_a.rd_old    = dispatch_reg_a.rd_old;
+        robDispatch_a.robNum    = rs_rob_ptr;
+        robDispatch_a.control   = dispatch_reg_a.control;
     end else begin
-        robDispatch.destReg1 = '0;
-        robDispatch.destRegOld1 = '0;
-        robDispatch.robNum1 = '0;
-        robDispatch.control1.MemRead = '0;
-        robDispatch.control1.MemtoReg = '0;
-        robDispatch.control1.ALUOp = '0;
-        robDispatch.control1.MemWrite = '0;
-        robDispatch.control1.ALUSrc = '0;
-        robDispatch.control1.RegWrite = '0;
-        robDispatch.pc1 = '0;
-        robDispatch.valid1 = '0;
+        robDispatch_a.pc        = '0;
+        robDispatch_a.valid     = '0;
+        robDispatch_a.rd        = '0;
+        robDispatch_a.rd_old    = '0;
+        robDispatch_a.robNum    = '0;
+        robDispatch_a.control.MemRead   = '0;
+        robDispatch_a.control.MemtoReg  = '0;
+        robDispatch_a.control.ALUOp     = '0;
+        robDispatch_a.control.MemWrite  = '0;
+        robDispatch_a.control.ALUSrc    = '0;
+        robDispatch_a.control.RegWrite  = '0;
     end
     
-    if (dispatch_reg_a.opcode) begin
-        robDispatch.destReg2 = dispatch_reg_b.rd;
-        robDispatch.destRegOld2 = dispatch_reg_b.rd_old;
-        robDispatch.robNum2 = rs_rob_ptr;
-        robDispatch.control2 = dispatch_reg_b.control;
-        robDispatch.pc2 = dispatch_reg_b.pc;
-        robDispatch.valid2 = '1;
+    if (dispatch_reg_b.opcode) begin
+        robDispatch_b.valid     = '1;
+        robDispatch_b.pc        = dispatch_reg_b.pc;
+        robDispatch_b.rd        = dispatch_reg_b.rd;
+        robDispatch_b.rd_old    = dispatch_reg_b.rd_old;
+        robDispatch_b.robNum    = rs_rob_ptr + 1'b1;
+        robDispatch_b.control   = dispatch_reg_a.control;
     end else begin
-        robDispatch.destReg2 = '0;
-        robDispatch.destRegOld2 = '0;
-        robDispatch.robNum2 = '0;
-        robDispatch.control2.MemRead = '0;
-        robDispatch.control2.MemtoReg = '0;
-        robDispatch.control2.ALUOp = '0;
-        robDispatch.control2.MemWrite = '0;
-        robDispatch.control2.ALUSrc = '0;
-        robDispatch.control2.RegWrite = '0;
-        robDispatch.pc2 = '0;
-        robDispatch.valid2 = '0;
+        robDispatch_b.pc        = '0;
+        robDispatch_b.valid     = '0;
+        robDispatch_b.rd        = '0;
+        robDispatch_b.rd_old    = '0;
+        robDispatch_b.robNum    = '0;
+        robDispatch_b.control.MemRead   = '0;
+        robDispatch_b.control.MemtoReg  = '0;
+        robDispatch_b.control.ALUOp     = '0;
+        robDispatch_b.control.MemWrite  = '0;
+        robDispatch_b.control.ALUSrc    = '0;
+        robDispatch_b.control.RegWrite  = '0;
     end    
 end
-        
+
+property rd_zero_for_lw_a; // Ensures that if we have a SW instruction, the rd register fields are zeroed
+    @(posedge clk) disable iff (!dispatch_reg_a.control.MemWrite)
+    (dispatch_reg_a.rd == '0 && dispatch_reg_a.rd_old == '0);
+endproperty
+
+assert property(rd_zero_for_lw_a);
+
+property rd_zero_for_lw_b; // Ensures that if we have a SW instruction, the rd register fields are zeroed
+    @(posedge clk) disable iff (!dispatch_reg_b.control.MemWrite)
+    (dispatch_reg_b.rd == '0 && dispatch_reg_b.rd_old == '0);
+endproperty
+
+assert property(rd_zero_for_lw_b);
+
 endmodule

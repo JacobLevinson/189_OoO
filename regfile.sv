@@ -94,7 +94,7 @@ always_ff @ (posedge clk) begin
 		
 		// Port c
 		if (RegWrite_c) begin
-			if (rd_b != '0) begin // Prevent writing to x0
+			if (rd_c != '0) begin // Prevent writing to x0
 				registers[rd_c] <= wr_data_c;
 			end
 		end

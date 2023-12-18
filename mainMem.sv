@@ -82,6 +82,25 @@ always_ff @ (posedge clk) begin // Store operations
 end
 
 always_comb begin // Read operations on port a
+    if (valid_a && MemRead_a) begin
+		response_a.rd_data[7:0]   = dmem[addr_a[4:0]];
+		response_a.rd_data[15:8]  = dmem[addr_a[4:0] + 5'd1];
+		response_a.rd_data[23:16] = dmem[addr_a[4:0] + 5'd2];
+		response_a.rd_data[31:24] = dmem[addr_a[4:0] + 5'd3];
+	end else begin // In all cases we are not reading, output zeros
+	    response_a.rd_data[7:0]    = '0;
+		response_a.rd_data[15:8]   = '0;
+		response_a.rd_data[23:16]  = '0;
+		response_a.rd_data[31:24]  = '0;
+	end
+	
+	// Pass through signals
+	response_a.MemWrite = MemWrite_a;
+	response_a.MemRead  = MemRead_a;
+	response_a.valid    = valid_a;
+end
+
+always_comb begin // Read operations on port b
     if (valid_b && MemRead_b) begin
 		response_b.rd_data[7:0]   = dmem[addr_b[4:0]];
 		response_b.rd_data[15:8]  = dmem[addr_b[4:0] + 5'd1];
@@ -100,7 +119,7 @@ always_comb begin // Read operations on port a
 	response_b.valid    = valid_b;
 end
 
-always_comb begin // Read operations on port b
+always_comb begin // Read operations on port c
     if (valid_c && MemRead_c) begin
 		response_c.rd_data[7:0]   = dmem[addr_c[4:0]];
 		response_c.rd_data[15:8]  = dmem[addr_c[4:0] + 5'd1];
@@ -117,25 +136,6 @@ always_comb begin // Read operations on port b
 	response_c.MemWrite = MemWrite_c;
 	response_c.MemRead  = MemRead_c;
 	response_c.valid    = valid_c;
-end
-
-always_comb begin // Read operations on port c
-    if (valid_a && MemRead_a) begin
-		response_a.rd_data[7:0]   = dmem[addr_a[4:0]];
-		response_a.rd_data[15:8]  = dmem[addr_a[4:0] + 5'd1];
-		response_a.rd_data[23:16] = dmem[addr_a[4:0] + 5'd2];
-		response_a.rd_data[31:24] = dmem[addr_a[4:0] + 5'd3];
-	end else begin // In all cases we are not reading, output zeros
-	    response_a.rd_data[7:0]    = '0;
-		response_a.rd_data[15:8]   = '0;
-		response_a.rd_data[23:16]  = '0;
-		response_a.rd_data[31:24]  = '0;
-	end
-	
-	// Pass through signals
-	response_a.MemWrite = MemWrite_a;
-	response_a.MemRead  = MemRead_a;
-	response_a.valid    = valid_a;
 end
 
 property single_port_ram_a; // MemWrite and MemRead may not be asserted together

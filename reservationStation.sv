@@ -5,28 +5,20 @@ input logic clk,
 input logic reset,
 input rsEntry rsLine_a,
 input rsEntry rsLine_b,
-input logic[63:0] phy_reg_rdy,
 
-//input forwardingStruct completeForward,
-//input logic [15:0] robFree,
-
-// These are wired to the regfile
-output regReqStruct reg_request [2:0], // Combinational
-
-// These are wired from the regfile
-input regRespStruct reg_response [2:0], // Combinational
+input forwardingStruct forward_a,
+input forwardingStruct forward_b,
+input forwardingStruct forward_c,
 
 output rsIssue issue0,
 output rsIssue issue1,
 output rsIssue issue2
 );
-/*logic [63:0] physReg [31:0] = 0;
-logic [3:0] firstRobFree;
-logic [3:0] secondRobFree;
-logic [3:0] robFreeSpace;*/
 
 rsEntry rsTable [15:0];
 logic [3:0] rs_idx; // Use this as a ptr to where to dispatch the next instruction
+                        
+logic [4:0] issue [2:0];
 
 logic [3:0] rs_index_a;
 logic [3:0] rs_index_b;
@@ -39,10 +31,10 @@ always_ff @(posedge clk) begin
     if (reset) begin // Initialize the RS Table
         for (i = 0; i < 16; i = i + 1) begin
             rsTable[i].valid    <= '0;
-            rsTable[i].src1rdy  <= '0;
-            rsTable[i].src2rdy  <= '0;
-            rsTable[i].src1val  <= '0;
-            rsTable[i].src2val  <= '0;
+            rsTable[i].rs1_rdy  <= '0;
+            rsTable[i].rs2_rdy  <= '0;
+            rsTable[i].rs1_data <= '0;
+            rsTable[i].rs2_data <= '0;
             rsTable[i].fu       <= '0;
             rsTable[i].robNum   <= '0;
             rsTable[i].instruction.pc       <= '0;
@@ -60,24 +52,135 @@ always_ff @(posedge clk) begin
             rsTable[i].instruction.control.ALUSrc   <= '0;
             rsTable[i].instruction.control.RegWrite <= '0;       
         end
+        rs_idx <= '0; // Points to first free entry in the RS table        
     end else begin
-        // Store the dispatch logic output to the RS table
-        if (rsLine_a.valid) begin // Is the dispatch stage output even valid?
-            rsTable[rs_index_a]       <= rsLine_a;
+        if (rsLine_a.valid && rsLine_b.valid) begin
+            rs_idx <= rs_idx + 2'b10;
+        end else if (rsLine_a.valid || rsLine_b.valid) begin
+            rs_idx <= rs_idx + 1'b1;
         end
-        if (rsLine_b.valid) begin // Is the dispatch stage output even valid?
-            rsTable[rs_index_b]      <= rsLine_b;
-        end
-        
-        // Go through the entire RS Table and update all src_rdy signals
+        // Go through the entire RS Table and update all register fields from the complete stage
         // There should not be any dependencies because of renaming
         for (i = 0; i < 16; i = i + 1) begin
-            if (rs_index_a != i && rs_index_b != i && rsTable[i].valid) begin 
-                // Skip the src_rdy signals for the new RS table entries
-                rsTable[i].src1rdy <= phy_reg_rdy[rsTable[i].instruction.rs1];
-                rsTable[i].src2rdy <= rsTable[i].instruction.control.ALUSrc ? 1'b1 : phy_reg_rdy[rsTable[i].instruction.rs2]; 
-                // This line checks that if we are to use an immediate, then ignore what is in the rs2 field for register readiness
+            if (rs_index_a != i && rs_index_b != i && rsTable[i].valid) begin // Avoids multiple drivers
+                if (forward_a.valid) begin
+                    if (rsTable[i].instruction.rs1 == forward_a.reg_addr) begin
+                        rsTable[i].rs1_rdy  <= '1;
+                        rsTable[i].rs1_data <= forward_a.data;
+                    end
+                    
+                    if (rsTable[i].instruction.rs2 == forward_a.reg_addr) begin
+                        rsTable[i].rs2_rdy  <= '1;
+                        rsTable[i].rs2_data <= forward_a.data;
+                    end
+                end
+                
+                if (forward_b.valid) begin
+                    if (rsTable[i].instruction.rs1 == forward_b.reg_addr) begin
+                        rsTable[i].rs1_rdy  <= '1;
+                        rsTable[i].rs1_data <= forward_b.data;
+                    end
+                    
+                    if (rsTable[i].instruction.rs2 == forward_b.reg_addr) begin
+                        rsTable[i].rs2_rdy  <= '1;
+                        rsTable[i].rs2_data <= forward_b.data;
+                    end
+                end
+                
+                if (forward_c.valid) begin
+                    if (rsTable[i].instruction.rs1 == forward_c.reg_addr) begin
+                        rsTable[i].rs1_rdy  <= '1;
+                        rsTable[i].rs1_data <= forward_c.data;
+                    end
+                    
+                    if (rsTable[i].instruction.rs2 == forward_c.reg_addr) begin
+                        rsTable[i].rs2_rdy  <= '1;
+                        rsTable[i].rs2_data <= forward_c.data;
+                    end
+                end
+                
+                if (issue[0] == i) begin
+                    rsTable[i].valid    <= '0;
+                    rsTable[i].rs1_rdy  <= '0;
+                    rsTable[i].rs2_rdy  <= '0;
+                    rsTable[i].rs1_data <= '0;
+                    rsTable[i].rs2_data <= '0;
+                    rsTable[i].fu       <= '0;
+                    rsTable[i].robNum   <= '0;
+                    rsTable[i].instruction.pc       <= '0;
+                    rsTable[i].instruction.opcode   <= '0;
+                    rsTable[i].instruction.rd       <= '0;
+                    rsTable[i].instruction.rd_old   <= '0;
+                    rsTable[i].instruction.rs1      <= '0;
+                    rsTable[i].instruction.rs2      <= '0;
+                    rsTable[i].instruction.imm      <= '0;
+                    rsTable[i].instruction.ALUCtrl  <= '0;
+                    rsTable[i].instruction.control.MemRead  <= '0;
+                    rsTable[i].instruction.control.MemtoReg <= '0;
+                    rsTable[i].instruction.control.ALUOp    <= '0;
+                    rsTable[i].instruction.control.MemWrite <= '0;
+                    rsTable[i].instruction.control.ALUSrc   <= '0;
+                    rsTable[i].instruction.control.RegWrite <= '0;      
+                end
+                
+                if (issue[1] == i) begin
+                    rsTable[i].valid    <= '0;
+                    rsTable[i].rs1_rdy  <= '0;
+                    rsTable[i].rs2_rdy  <= '0;
+                    rsTable[i].rs1_data <= '0;
+                    rsTable[i].rs2_data <= '0;
+                    rsTable[i].fu       <= '0;
+                    rsTable[i].robNum   <= '0;
+                    rsTable[i].instruction.pc       <= '0;
+                    rsTable[i].instruction.opcode   <= '0;
+                    rsTable[i].instruction.rd       <= '0;
+                    rsTable[i].instruction.rd_old   <= '0;
+                    rsTable[i].instruction.rs1      <= '0;
+                    rsTable[i].instruction.rs2      <= '0;
+                    rsTable[i].instruction.imm      <= '0;
+                    rsTable[i].instruction.ALUCtrl  <= '0;
+                    rsTable[i].instruction.control.MemRead  <= '0;
+                    rsTable[i].instruction.control.MemtoReg <= '0;
+                    rsTable[i].instruction.control.ALUOp    <= '0;
+                    rsTable[i].instruction.control.MemWrite <= '0;
+                    rsTable[i].instruction.control.ALUSrc   <= '0;
+                    rsTable[i].instruction.control.RegWrite <= '0;      
+                end
+                
+                if (issue[2] == i) begin
+                    rsTable[i].valid    <= '0;
+                    rsTable[i].rs1_rdy  <= '0;
+                    rsTable[i].rs2_rdy  <= '0;
+                    rsTable[i].rs1_data <= '0;
+                    rsTable[i].rs2_data <= '0;
+                    rsTable[i].fu       <= '0;
+                    rsTable[i].robNum   <= '0;
+                    rsTable[i].instruction.pc       <= '0;
+                    rsTable[i].instruction.opcode   <= '0;
+                    rsTable[i].instruction.rd       <= '0;
+                    rsTable[i].instruction.rd_old   <= '0;
+                    rsTable[i].instruction.rs1      <= '0;
+                    rsTable[i].instruction.rs2      <= '0;
+                    rsTable[i].instruction.imm      <= '0;
+                    rsTable[i].instruction.ALUCtrl  <= '0;
+                    rsTable[i].instruction.control.MemRead  <= '0;
+                    rsTable[i].instruction.control.MemtoReg <= '0;
+                    rsTable[i].instruction.control.ALUOp    <= '0;
+                    rsTable[i].instruction.control.MemWrite <= '0;
+                    rsTable[i].instruction.control.ALUSrc   <= '0;
+                    rsTable[i].instruction.control.RegWrite <= '0;      
+                end
             end
+            
+            if (rs_index_a == i) begin 
+                if (rsLine_a.valid) begin // Is the dispatch stage output even valid?
+                    rsTable[rs_index_a]       <= rsLine_a; // Store the dispatch logic output to the RS table
+                end
+            end else if (rs_index_b == i) begin
+                if (rsLine_b.valid) begin // Is the dispatch stage output even valid?
+                    rsTable[rs_index_b]      <= rsLine_b; // Store the dispatch logic output to the RS table
+                end
+            end    
         end
     end
 end
@@ -88,8 +191,6 @@ assign validity = {rsTable[15].valid, rsTable[14].valid, rsTable[13].valid, rsTa
                    rsTable[7].valid, rsTable[5].valid, rsTable[5].valid, rsTable[4].valid, 
                    rsTable[3].valid, rsTable[2].valid, rsTable[1].valid, rsTable[0].valid};
 
-logic [3:0] issue [2:0];
-
 integer j;
 always_comb begin 
     // This searches the RS table to find an entry it can issue
@@ -97,38 +198,38 @@ always_comb begin
     // This cascade of checks probably could be more efficient
     for (j = 0; j < 3; j = j + 1) begin // Search for an instruction for all 3 FUs, deal with the fact that FU2 (mem) might be busy in the sequential part
         if (validity) begin // If there is stuff in the RS table
-            if (rsTable[rs_idx].valid && rsTable[rs_idx].src1rdy && rsTable[rs_idx].src2rdy && (rsTable[rs_idx].fu == j)) begin
-                issue[j] = rs_idx;
-            end else if (rsTable[rs_idx+1].valid && rsTable[rs_idx+1].src1rdy && rsTable[rs_idx+1].src2rdy && (rsTable[rs_idx+1].fu == j)) begin
-                issue[j] = rs_idx + 1;
-            end else if (rsTable[rs_idx+2].valid && rsTable[rs_idx+2].src1rdy && rsTable[rs_idx+2].src2rdy && (rsTable[rs_idx+2].fu == j)) begin
-                issue[j] = rs_idx + 2;
-            end else if (rsTable[rs_idx+3].valid && rsTable[rs_idx+3].src1rdy && rsTable[rs_idx+3].src2rdy && (rsTable[rs_idx+3].fu == j)) begin
-                issue[j] = rs_idx + 3;
-            end else if (rsTable[rs_idx+4].valid && rsTable[rs_idx+4].src1rdy && rsTable[rs_idx+4].src2rdy && (rsTable[rs_idx+4].fu == j)) begin
-                issue[j] = rs_idx + 4;
-            end else if (rsTable[rs_idx+5].valid && rsTable[rs_idx+5].src1rdy && rsTable[rs_idx+5].src2rdy && (rsTable[rs_idx+5].fu == j)) begin
-                issue[j] = rs_idx + 5;
-            end else if (rsTable[rs_idx+6].valid && rsTable[rs_idx+6].src1rdy && rsTable[rs_idx+6].src2rdy && (rsTable[rs_idx+6].fu == j)) begin
-                issue[j] = rs_idx + 6;
-            end else if (rsTable[rs_idx+7].valid && rsTable[rs_idx+7].src1rdy && rsTable[rs_idx+7].src2rdy && (rsTable[rs_idx+7].fu == j)) begin
-                issue[j] = rs_idx + 7;
-            end else if (rsTable[rs_idx+8].valid && rsTable[rs_idx+8].src1rdy && rsTable[rs_idx+8].src2rdy && (rsTable[rs_idx+8].fu == j)) begin
-                issue[j] = rs_idx + 8;
-            end else if (rsTable[rs_idx+9].valid && rsTable[rs_idx+9].src1rdy && rsTable[rs_idx+9].src2rdy && (rsTable[rs_idx+9].fu == j)) begin
-                issue[j] = rs_idx + 9;
-            end else if (rsTable[rs_idx+10].valid && rsTable[rs_idx+10].src1rdy && rsTable[rs_idx+10].src2rdy && (rsTable[rs_idx+10].fu == j)) begin
-                issue[j] = rs_idx + 10;
-            end else if (rsTable[rs_idx+11].valid && rsTable[rs_idx+11].src1rdy && rsTable[rs_idx+11].src2rdy && (rsTable[rs_idx+11].fu == j)) begin
-                issue[j] = rs_idx + 11;
-            end else if (rsTable[rs_idx+12].valid && rsTable[rs_idx+12].src1rdy && rsTable[rs_idx+12].src2rdy && (rsTable[rs_idx+12].fu == j)) begin
-                issue[j] = rs_idx + 12;
-            end else if (rsTable[rs_idx+13].valid && rsTable[rs_idx+13].src1rdy && rsTable[rs_idx+13].src2rdy && (rsTable[rs_idx+13].fu == j)) begin
-                issue[j] = rs_idx + 13;
-            end else if (rsTable[rs_idx+14].valid && rsTable[rs_idx+14].src1rdy && rsTable[rs_idx+14].src2rdy && (rsTable[rs_idx+14].fu == j)) begin
-                issue[j] = rs_idx + 14;
-            end else if (rsTable[rs_idx+15].valid && rsTable[rs_idx+15].src1rdy && rsTable[rs_idx+15].src2rdy && (rsTable[rs_idx+15].fu == j)) begin
-                issue[j] = rs_idx + 15;
+            if (rsTable[rs_idx].valid && rsTable[rs_idx].rs1_rdy && rsTable[rs_idx].rs2_rdy && (rsTable[rs_idx].fu == j)) begin
+                issue[j] = {'0, rs_idx[3:0]};
+            end else if (rsTable[rs_idx[3:0]+4'd1].valid && rsTable[rs_idx[3:0]+4'd1].rs1_rdy && rsTable[rs_idx[3:0]+4'd1].rs2_rdy && (rsTable[rs_idx[3:0]+4'd1].fu == j)) begin
+                issue[j] = {'0, rs_idx[3:0] + 4'd1};
+            end else if (rsTable[rs_idx[3:0]+4'd2].valid && rsTable[rs_idx[3:0]+4'd2].rs1_rdy && rsTable[rs_idx[3:0]+4'd2].rs2_rdy && (rsTable[rs_idx[3:0]+4'd2].fu == j)) begin
+                issue[j] = {'0, rs_idx[3:0] + 4'd2};
+            end else if (rsTable[rs_idx[3:0]+4'd3].valid && rsTable[rs_idx[3:0]+4'd3].rs1_rdy && rsTable[rs_idx[3:0]+4'd3].rs2_rdy && (rsTable[rs_idx[3:0]+4'd3].fu == j)) begin
+                issue[j] = {'0, rs_idx[3:0] + 4'd3};
+            end else if (rsTable[rs_idx[3:0]+4'd4].valid && rsTable[rs_idx[3:0]+4'd4].rs1_rdy && rsTable[rs_idx[3:0]+4'd4].rs2_rdy && (rsTable[rs_idx[3:0]+4'd4].fu == j)) begin
+                issue[j] = {'0, rs_idx[3:0] + 4'd4};
+            end else if (rsTable[rs_idx[3:0]+4'd5].valid && rsTable[rs_idx[3:0]+4'd5].rs1_rdy && rsTable[rs_idx[3:0]+4'd5].rs2_rdy && (rsTable[rs_idx[3:0]+4'd5].fu == j)) begin
+                issue[j] = {'0, rs_idx[3:0] + 4'd5};
+            end else if (rsTable[rs_idx[3:0]+4'd6].valid && rsTable[rs_idx[3:0]+4'd6].rs1_rdy && rsTable[rs_idx[3:0]+4'd6].rs2_rdy && (rsTable[rs_idx[3:0]+4'd6].fu == j)) begin
+                issue[j] = {'0, rs_idx[3:0] + 4'd6};
+            end else if (rsTable[rs_idx[3:0]+4'd7].valid && rsTable[rs_idx[3:0]+4'd7].rs1_rdy && rsTable[rs_idx[3:0]+4'd7].rs2_rdy && (rsTable[rs_idx[3:0]+4'd7].fu == j)) begin
+                issue[j] = {'0, rs_idx[3:0] + 4'd7};
+            end else if (rsTable[rs_idx[3:0]+4'd8].valid && rsTable[rs_idx[3:0]+4'd8].rs1_rdy && rsTable[rs_idx[3:0]+4'd8].rs2_rdy && (rsTable[rs_idx[3:0]+4'd8].fu == j)) begin
+                issue[j] = {'0, rs_idx[3:0] + 4'd8};
+            end else if (rsTable[rs_idx[3:0]+4'd9].valid && rsTable[rs_idx[3:0]+4'd9].rs1_rdy && rsTable[rs_idx[3:0]+4'd9].rs2_rdy && (rsTable[rs_idx[3:0]+4'd9].fu == j)) begin
+                issue[j] = {'0, rs_idx[3:0] + 4'd9};
+            end else if (rsTable[rs_idx[3:0]+4'd10].valid && rsTable[rs_idx[3:0]+4'd10].rs1_rdy && rsTable[rs_idx[3:0]+4'd10].rs2_rdy && (rsTable[rs_idx[3:0]+4'd10].fu == j)) begin
+                issue[j] = {'0, rs_idx[3:0] + 4'd10};
+            end else if (rsTable[rs_idx[3:0]+4'd11].valid && rsTable[rs_idx[3:0]+4'd11].rs1_rdy && rsTable[rs_idx[3:0]+4'd11].rs2_rdy && (rsTable[rs_idx[3:0]+4'd11].fu == j)) begin
+                issue[j] = {'0, rs_idx[3:0] + 4'd11};
+            end else if (rsTable[rs_idx[3:0]+4'd12].valid && rsTable[rs_idx[3:0]+4'd12].rs1_rdy && rsTable[rs_idx[3:0]+4'd12].rs2_rdy && (rsTable[rs_idx[3:0]+4'd12].fu == j)) begin
+                issue[j] = {'0, rs_idx[3:0] + 4'd12};
+            end else if (rsTable[rs_idx[3:0]+4'd13].valid && rsTable[rs_idx[3:0]+4'd13].rs1_rdy && rsTable[rs_idx[3:0]+4'd13].rs2_rdy && (rsTable[rs_idx[3:0]+4'd13].fu == j)) begin
+                issue[j] = {'0, rs_idx[3:0] + 4'd13};
+            end else if (rsTable[rs_idx[3:0]+4'd14].valid && rsTable[rs_idx[3:0]+4'd14].rs1_rdy && rsTable[rs_idx[3:0]+4'd14].rs2_rdy && rsTable[rs_idx[3:0]+4'd14].fu == j) begin
+                issue[j] = {'0, rs_idx[3:0] + 4'd14};
+            end else if (rsTable[rs_idx[3:0]+4'd15].valid && rsTable[rs_idx[3:0]+4'd15].rs1_rdy && rsTable[rs_idx[3:0]+4'd15].rs2_rdy && (rsTable[rs_idx[3:0]+4'd15].fu == j)) begin
+                issue[j] = {'0, rs_idx[3:0] + 4'd15};
             end else begin
                 issue[j] = '1; // No results found
             end
@@ -146,41 +247,73 @@ assign fuRdy.alu2 = '1;
 always_ff @(posedge clk) begin // Issue logic
     if (reset) begin
         rs_idx <= '0;
-        cycle_counter <= '0;
     end else begin
-        if (issue[0] != 5'b1) begin // Checks that we found a valid entry
+        if (issue[0] != 5'b11111) begin // Checks that we found a valid entry
             issue0.valid    <= rsTable[issue[0][3:0]].valid;
             issue0.robNum   <= rsTable[issue[0][3:0]].robNum;
             issue0.pc       <= rsTable[issue[0][3:0]].instruction.pc;
             issue0.rd       <= rsTable[issue[0][3:0]].instruction.rd;
             issue0.rd_old   <= rsTable[issue[0][3:0]].instruction.rd_old;
-            issue0.rs1      <= rsTable[issue[0][3:0]].src1val;
-            issue0.rs2      <= rsTable[issue[0][3:0]].src1val;
+            issue0.rs1      <= rsTable[issue[0][3:0]].rs1_data;
+            issue0.rs2      <= rsTable[issue[0][3:0]].rs2_data;
             issue0.imm      <= rsTable[issue[0][3:0]].instruction.imm;
             issue0.ALUCtrl  <= rsTable[issue[0][3:0]].instruction.ALUCtrl;
             issue0.control  <= rsTable[issue[0][3:0]].instruction.control;
-        end 
-        if (issue[1] != 5'b1) begin // Checks that we found a valid entry
+        end else begin
+            issue0.valid    <= '0;
+            issue0.robNum   <= '0;
+            issue0.pc       <= '0;
+            issue0.rd       <= '0;
+            issue0.rd_old   <= '0;
+            issue0.rs1      <= '0;
+            issue0.rs2      <= '0;
+            issue0.imm      <= '0;
+            issue0.ALUCtrl  <= '0;
+            issue0.control.MemRead  <= '0;
+            issue0.control.MemtoReg <= '0;
+            issue0.control.ALUOp    <= '0;
+            issue0.control.MemWrite <= '0;
+            issue0.control.ALUSrc   <= '0;
+            issue0.control.RegWrite <= '0;
+        end
+        if (issue[1] != 5'b11111) begin // Checks that we found a valid entry
             issue1.valid    <= rsTable[issue[1][3:0]].valid;
             issue1.robNum   <= rsTable[issue[1][3:0]].robNum;
             issue1.pc       <= rsTable[issue[1][3:0]].instruction.pc;
             issue1.rd       <= rsTable[issue[1][3:0]].instruction.rd;
             issue1.rd_old   <= rsTable[issue[1][3:0]].instruction.rd_old;
-            issue1.rs1      <= rsTable[issue[1][3:0]].src1val;
-            issue1.rs2      <= rsTable[issue[1][3:0]].src2val;
+            issue1.rs1      <= rsTable[issue[1][3:0]].rs1_data;
+            issue1.rs2      <= rsTable[issue[1][3:0]].rs2_data;
             issue1.imm      <= rsTable[issue[1][3:0]].instruction.imm;
             issue1.ALUCtrl  <= rsTable[issue[1][3:0]].instruction.ALUCtrl;
             issue1.control  <= rsTable[issue[1][3:0]].instruction.control;
-        end 
+        end else begin
+            issue1.valid    <= '0;
+            issue1.robNum   <= '0;
+            issue1.pc       <= '0;
+            issue1.rd       <= '0;
+            issue1.rd_old   <= '0;
+            issue1.rs1      <= '0;
+            issue1.rs2      <= '0;
+            issue1.imm      <= '0;
+            issue1.ALUCtrl  <= '0;
+            issue1.control.MemRead  <= '0;
+            issue1.control.MemtoReg <= '0;
+            issue1.control.ALUOp    <= '0;
+            issue1.control.MemWrite <= '0;
+            issue1.control.ALUSrc   <= '0;
+            issue1.control.RegWrite <= '0;
+        end
+        
         if (fuRdy.mem) begin // First check that the FU is ready
-            if (issue[1] != 5'b1) begin // Checks that we found a valid entry
+            if (issue[2] != 5'b11111) begin // Checks that we found a valid entry
                 issue2.valid    <= rsTable[issue[2][3:0]].valid;
                 issue2.robNum   <= rsTable[issue[2][3:0]].robNum;
                 issue2.pc       <= rsTable[issue[2][3:0]].instruction.pc;
                 issue2.rd       <= rsTable[issue[2][3:0]].instruction.rd;
                 issue2.rd_old   <= rsTable[issue[2][3:0]].instruction.rd_old;
-                issue2.rs1      <= rsTable[issue[2][3:0]].src1val;
-                issue2.rs2      <= rsTable[issue[2][3:0]].src2val;
+                issue2.rs1      <= rsTable[issue[2][3:0]].rs1_data;
+                issue2.rs2      <= rsTable[issue[2][3:0]].rs2_data;
                 issue2.imm      <= rsTable[issue[2][3:0]].instruction.imm;
                 issue2.ALUCtrl  <= rsTable[issue[2][3:0]].instruction.ALUCtrl;
                 issue2.control  <= rsTable[issue[2][3:0]].instruction.control;
@@ -189,8 +322,9 @@ always_ff @(posedge clk) begin // Issue logic
         end
         
         if (fuRdy.mem) begin
-            if (issue[1] != 5'b1) begin // Valid instruction
+            if (issue[2] != 5'b11111) begin // Valid instruction
                 fuRdy.mem <= '0; // Not ready
+            end
         end else begin
             fuRdy.mem <= '1; // Always 1 unless just used
         end
@@ -198,93 +332,3 @@ always_ff @(posedge clk) begin // Issue logic
 end
 
 endmodule
-
-
-/*
-	// Dsipatch stage
-
-	// If we have a valid instruction, dispatch it to the reservation station
-
-	// Check if there is at least 2 free spots in the ROB by checking if there's at least 2 1's in robFree
-
-	if($countones(robFree) < 2) begin // or other stall signals, we will wrap the rest of our code in this if statement
-		//STALL
-	end
-	
-	// Find the first free spot in ROB
-	// Find the MSB that is set to 1
-	automatic int temp = 0;
-	for (int i = 15; i >= 0; i--) begin
-		if (robFree[i] == 1'b1) begin
-			firstRobFree <= i[3:0];
-			temp = i[3:0];
-			break;
-		end
-	end
-	// Find the second free spot in ROB
-	// Find the second MSB that is set to 1
-	for (int i = temp - 1; i >= 0; i--) begin
-		if (robFree[i] == 1'b1) begin
-			secondRobFree <= i[3:0];
-			break;
-		end
-	end
-
-
-	// Dispatch the first instruction to the ROB and to the reservation station
-	if(dispatchData.inst1valid) begin
-		robDispatch.destReg1 <= dispatchData.inst1.rd;
-		robDispatch.destRegOld1 <= dispatchData.destRegOld1;
-		robDispatch.robNum1 <= firstRobFree;
-		robDispatch.pc1 <= dispatchData.inst1.pc;
-		robDispatch.valid1 <= 1;
-		// Now dispatch to reservation station
-		
-		
-	end else begin
-		robDispatch.valid1 <= 0;
-	end
-	// Dispatch the second instruction to the ROB and to the reservation station
-	if(dispatchData.inst2valid) begin
-		robDispatch.destReg2 <= dispatchData.inst2.rd;
-		robDispatch.destRegOld2 <= dispatchData.destRegOld2;
-		robDispatch.robNum2 <= secondRobFree;
-		robDispatch.pc2 <= dispatchData.inst2.pc;
-		robDispatch.valid2 <= 1;
-		// Now dispatch to reservation station
-		
-	end else begin
-		robDispatch.valid2 <= 0;
-	end
-
-	
-
-
-	// Forward outputs from complete stage to waiting registers and mark them as ready
-	if(completeForward.valid1) begin
-		physReg [completeForward.reg1] <= completeForward.val1;
-		reservationTable [completeForward.reg1].src1rdy <= 1;
-	end
-	if(completeForward.valid2) begin
-		physReg [completeForward.reg2] <= completeForward.val2;
-		reservationTable [completeForward.reg2].src2rdy <= 1;
-	end
-
-
-
-
-
-
-
-
-
-
-
-
-
-end
-
-
-
-
-endmodule*/

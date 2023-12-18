@@ -5,7 +5,8 @@ input logic clk,
 input logic reset,
 input instStruct rename_reg_a,
 input instStruct rename_reg_b,
-input freeRegStruct free_regs,
+input freeRegStruct freeReg_a,
+input freeRegStruct freeReg_b,
 output dispatchStruct dispatch_reg_a,
 output dispatchStruct dispatch_reg_b
 );
@@ -64,7 +65,6 @@ localparam sw 		= 7'b0100011;
 
 // Declare the register alias table
 logic [5:0] rat [31:0];
-logic [5:0] rat_ptr;
 
 // Declare the free_pool table, implemented as a circular queue
 logic [5:0] free_pool [63:0]; 
@@ -92,7 +92,7 @@ always_comb begin // Need to account for SW instructions which do not have an rd
 		end	
 	end else begin
 		if (rd_a_arch == rs1_b_arch) begin // Correct dependency, there was an rd in the previous istruction
-			rs1_b_phy = free_pool_ptr_head;
+			rs1_b_phy = free_pool[free_pool_ptr_head];
 		end else begin // No dependency
 			rs1_b_phy = rat[rs1_b_arch];
 		end	
@@ -114,7 +114,7 @@ always_comb begin // Need to account for SW instructions which do not have an rd
 		end
 	end
 	
-	// If we have a store word, then we won't have an rd
+	// If we have a store word, then we won't have an rd, so zero it
 	unique case (free_pool_ptr_incr) 
 		2'b11: begin // Both A and B are SW or x0
 			rd_a_phy		= '0;
@@ -131,7 +131,7 @@ always_comb begin // Need to account for SW instructions which do not have an rd
 		2'b01: begin // B is a SW or x0, A has a valid rd
 			rd_a_phy 		= free_pool[free_pool_ptr_head];
 			rd_a_phy_old 	= rat[rd_a_arch];
-			rd_b_phy			= '0;
+			rd_b_phy		= '0;
 			rd_b_phy_old 	= '0;
 		end
 		2'b00: begin // Neither A or B are SW or x0
@@ -152,6 +152,9 @@ end
 integer i;
 integer j;
 
+logic [1:0] free_pool_tail_incr; // Detects if we don't need to assign an rd register
+assign free_pool_tail_incr = {freeReg_a.valid, freeReg_b.valid};
+
 always_ff @ (posedge clk) begin
 	if (reset) begin // Resets the RAT and free pool tables
 		for (i = 0; i < 32; i = i + 1) begin
@@ -167,7 +170,7 @@ always_ff @ (posedge clk) begin
 		
 		free_pool_ptr_head <= 0; 
 		free_pool_ptr_tail <= 32;
-	end else begin
+    end else begin
 		unique case (free_pool_ptr_incr) 
 			2'b11: begin // Both A and B are SW or x0
 				// No changes to RAT or free pool
@@ -192,27 +195,30 @@ always_ff @ (posedge clk) begin
 			default: begin
 			end
         endcase
-		
-		if (free_regs.valid1 && free_regs.valid2) begin
-		  free_pool_ptr_tail <= free_pool_ptr_tail + 2'b10;
-		  
-		  free_pool[free_pool_ptr_tail] <= free_regs.reg1;
-		  free_pool[free_pool_ptr_tail+1'b1] <= free_regs.reg2;
-		end else if (free_regs.valid1 && !free_regs.valid2) begin 
-		  free_pool_ptr_tail <= free_pool_ptr_tail + 2'b01;
-		  
-		  free_pool[free_pool_ptr_tail] <= free_regs.reg1;
-		end else if (!free_regs.valid1 && free_regs.valid2) begin
-		  free_pool_ptr_tail <= free_pool_ptr_tail + 2'b01;
-		  
-		  free_pool[free_pool_ptr_tail] <= free_regs.reg2;
-	   end else begin
-	       // Do nothing
-	   end
-		
+        
+        unique case (free_pool_tail_incr)
+            2'b00: begin
+                // Two invalids, no need to free anything
+            end
+            2'b01: begin // Only one register needs to be freed
+                free_pool[free_pool_ptr_tail]   <= freeReg_b.reg_addr;
+                free_pool_ptr_tail              <= free_pool_ptr_tail + 1'b1;
+            end
+            2'b10: begin
+                free_pool[free_pool_ptr_tail]   <= freeReg_a.reg_addr;
+                free_pool_ptr_tail              <= free_pool_ptr_tail + 1'b1;
+            end
+            2'b11: begin // Two registers need to be freed
+                free_pool[free_pool_ptr_tail]         <= freeReg_a.reg_addr;
+                free_pool[free_pool_ptr_tail + 1'b1]  <= freeReg_b.reg_addr;
+                free_pool_ptr_tail                    <= free_pool_ptr_tail + 2'd2;
+            end
+            default: begin
+              // Something went wrong, don't do anything
+            end
+        endcase
 	end
 end
-
 
 // LUT for 4 bit operations
 localparam ctrl_and = 4'b0000;

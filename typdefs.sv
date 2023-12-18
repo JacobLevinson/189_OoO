@@ -42,15 +42,13 @@ typedef struct { // Use this struct for physical register addressing
     ctrlStruct control;
 } dispatchStruct;
 
-
 typedef struct {
     logic valid;
     dispatchStruct instruction;
-    // Flags
-    logic src1rdy;
-    logic [31:0] src1val;
-    logic src2rdy;
-    logic [31:0] src2val;
+    logic rs1_rdy;
+    logic rs2_rdy;
+    logic [31:0] rs1_data;
+    logic [31:0] rs2_data;
     logic [1:0] fu;
     logic [3:0] robNum;
 } rsEntry;
@@ -103,6 +101,10 @@ typedef struct {
     logic valid;
 } aluOutStruct;
 
+typedef struct {
+    logic MemWrite;
+    logic MemRead;
+} memFlagsStruct;
 
 typedef struct {
 	logic [31:0] addr;
@@ -126,37 +128,23 @@ typedef struct {
 	logic [5:0] rd; // 6 bit physical addressing
 	logic [5:0] rd_old; // This is needed by the ROB to tell the rename stage to put this register in the free pool upon retire
     logic [31:0] result;
-    logic [31:0] mem_data;
+    logic [31:0] wr_data; // Used only for LW instructions
     ctrlStruct control;
 } completeStruct;
 
-
-
 typedef struct {
-    logic valid1;
-    logic valid2;
-    logic valid3;
-    logic [5:0] reg1;
-    logic [5:0] reg2;
-    logic [5:0] reg3;
-    logic [31:0] val1;
-    logic [31:0] val2;
-    logic [31:0] val3;
+    logic valid;
+    logic [5:0] reg_addr;
+    logic [31:0] data;
 } forwardingStruct;
 
 typedef struct {
-    logic [5:0] destReg1;
-    logic [5:0] destRegOld1;
-    logic [5:0] robNum1;
-    ctrlStruct control1;
-    logic [31:0] pc1;
-    logic valid1;
-    logic [5:0] destReg2;
-    logic [5:0] destRegOld2;
-    logic [5:0] robNum2;
-    ctrlStruct control2;
-    logic [31:0] pc2;
-    logic valid2;
+    logic valid;
+    logic [31:0] pc;
+    logic [5:0] rd;
+    logic [5:0] rd_old;
+    logic [5:0] robNum;
+    ctrlStruct control;
 } robDispatchStruct;
 
 typedef struct {
@@ -166,15 +154,13 @@ typedef struct {
     logic [5:0] rd; // 6 bit physical addressing
     logic [5:0] rd_old; // This is needed by the ROB to tell the rename stage to put this register in the free pool upon retire
     logic [31:0] result;
-    logic [31:0] mem_data;
+    logic [31:0] wr_data;
     ctrlStruct control;
 } robEntryStruct;
 
 typedef struct {
-    logic valid1;
-    logic valid2;
-    logic [5:0] reg1;
-    logic [5:0] reg2;
+    logic valid;
+    logic reg_addr;
 } freeRegStruct;
 
 endpackage : typedefs

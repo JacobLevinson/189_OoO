@@ -46,6 +46,11 @@ always_ff @(posedge clk) begin // Push to pipeline registers
     complete0.rd        <= issue0.rd;
     complete0.rd_old    <= issue0.rd_old;
     complete0.result    <= aluOut0.result;
+    if (issue0.control.MemWrite) begin
+        complete0.wr_data <= issue0.rs2; //
+    end else begin
+        complete0.wr_data <= '0;
+    end
     complete0.control   <= issue0.control;
     
     complete1.valid     <= aluOut1.valid;
@@ -54,6 +59,11 @@ always_ff @(posedge clk) begin // Push to pipeline registers
     complete1.rd        <= issue1.rd;
     complete1.rd_old    <= issue1.rd_old;
     complete1.result    <= aluOut1.result;
+    if (issue1.control.MemWrite) begin
+        complete1.wr_data <= issue1.rs2;
+    end else begin
+        complete1.wr_data <= '0;
+    end
     complete1.control   <= issue1.control;
 end
 
@@ -86,12 +96,16 @@ always_ff @ (posedge clk) begin // Output the memory response as registers
     complete2.pc        <= issue2.pc;
     complete2.rd        <= issue2.rd;
     complete2.rd_old    <= issue2.rd_old;
-    if (response.MemRead) begin
-        complete2.result    <= response.rd_data; // This is what we just read
-    end else begin
-        complete2.result    <= issue2.rs2; // Put what we will need to commit to memory in the result
-    end
+    complete2.result    <= response.rd_data; // This is what we just read
+    complete2.wr_data   <= '0;
     complete2.control   <= issue2.control;
 end
+
+property fu2_only_lw; // Ensures that FU2 only sees LW instructions
+    @(posedge clk) disable iff (!issue2.valid)
+    (!issue2.control.MemRead && !issue2.control.MemtoReg && !issue2.control.ALUOp && issue2.control.MemWrite && issue2.control.ALUSrc && !issue2.control.RegWrite);
+endproperty
+
+assert property (fu2_only_lw);
 
 endmodule
