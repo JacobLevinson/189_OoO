@@ -20,7 +20,7 @@ robEntryStruct rob_table [15:0];
 
 always_comb begin // complete stage logic
     if (complete0.valid) begin
-        forward_a.valid     = 1'b1;
+        forward_a.valid     = (complete0.control.MemRead || complete0.control.MemWrite) ? 1'b0 : 1'b1; // Exception for LW, LW will only forward from the mem stage
         forward_a.reg_addr  = complete0.rd;
         forward_a.data      = complete0.result;
     end else begin
@@ -29,7 +29,7 @@ always_comb begin // complete stage logic
         forward_a.data      = '0;
     end
     if (complete1.valid) begin
-        forward_b.valid     = 1'b1;
+        forward_b.valid     = (complete1.control.MemRead || complete1.control.MemWrite) ? 1'b0 : 1'b1;
         forward_b.reg_addr  = complete1.rd;
         forward_b.data      = complete1.result;
     end else begin
@@ -38,7 +38,7 @@ always_comb begin // complete stage logic
         forward_b.data      = '0;
     end
     if (complete2.valid) begin
-        forward_c.valid     = 1'b1;
+        forward_c.valid     = (complete2.control.MemRead || complete2.control.MemWrite) ? 1'b0 : 1'b1; // Exception for LW, LW will only forward from the mem stage
         forward_c.reg_addr  = complete2.rd;
         forward_c.data      = complete2.result;
     end else begin
@@ -113,7 +113,7 @@ always_ff @ (posedge clk) begin
            end
            
            if (rob_ptr == j) begin // retire signals - just send the to entries out if they are ready
-                if (rob_table[rob_ptr].complete) begin
+                if (rob_table[rob_ptr].complete && rob_table[rob_ptr].valid) begin
                     retire_instr_a              <= rob_table[rob_ptr];
                     
                     rob_table[rob_ptr].valid    <= 0;
@@ -129,7 +129,7 @@ always_ff @ (posedge clk) begin
                     rob_table[rob_ptr].control.MemWrite <= '0;
                     rob_table[rob_ptr].control.ALUSrc   <= '0;
                     rob_table[rob_ptr].control.RegWrite <= '0;  
-                    if (rob_table[rob_ptr + 1'b1].complete) begin
+                    if (rob_table[rob_ptr + 1'b1].complete && rob_table[rob_ptr + 1'b1].valid) begin
                         retire_instr_b              <= rob_table[rob_ptr + 1'b1];
                     
                         rob_table[rob_ptr + 1'b1].valid     <= 0;
@@ -148,6 +148,7 @@ always_ff @ (posedge clk) begin
                         
                         rob_ptr <= rob_ptr + 2'b10;
                     end else begin
+                        retire_instr_b.valid <= '0;
                         rob_ptr <= rob_ptr + 1'b1;
                     end
                 end else begin

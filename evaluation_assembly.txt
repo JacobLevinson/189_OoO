@@ -1,15 +1,14 @@
-	addi x2, x0, 6  
-        addi x3, x0, 15 
-        addi x1, x2, 36
-        sw x3, x3, 9
-        add x4, x3, x2
-        add x0, x0, x0
-        sw x1, x0, 0
-        lw x2, 24, x0
-	xor x6, x2, x3
-        lw x3, xo, 0
-        sub x5, x3, x4
-        sra x7, x2, x9
-        andi x9, x3, 23
-        sw x5, x7, 1
-       
+32 addi x2, x0, 6      x2 = 6
+33 addi x3, x0, 15     x3 = 15
+34 addi x1, x2, 36     x1 = 42
+   sw x3, x3, 9        mem[24] = 15
+35 add x4, x3, x2      x4 = 21
+   add x0, x0, x0
+   sw x1, x0, 0        mem[0] = 42
+36 lw x2, 24, x0       x2 = mem[24] = 15 -> 0
+37 xor x6, x2, x3      x6 = 0 -> 15
+38 lw x3, x0, 0        x3 = mem[0] = 42 -> 0
+39 sub x5, x3, x4      x5 = -21 -> -21
+40 sra x7, x2, x9      x7 = 15 -> 0
+41 andi x9, x3, 23     x9 = 2 -> 0
+   sw x5, x7, 1        mem[22] = 21 -> mem[1] = -21

@@ -9,6 +9,8 @@ input rsEntry rsLine_b,
 input forwardingStruct forward_a,
 input forwardingStruct forward_b,
 input forwardingStruct forward_c,
+input forwardingStruct forward_d,
+input forwardingStruct forward_e,
 
 output rsIssue issue0,
 output rsIssue issue1,
@@ -64,38 +66,62 @@ always_ff @(posedge clk) begin
         for (i = 0; i < 16; i = i + 1) begin
             if (rs_index_a != i && rs_index_b != i && rsTable[i].valid) begin // Avoids multiple drivers
                 if (forward_a.valid) begin
-                    if (rsTable[i].instruction.rs1 == forward_a.reg_addr) begin
+                    if (rsTable[i].instruction.rs1 == forward_a.reg_addr && forward_a.reg_addr != 0) begin
                         rsTable[i].rs1_rdy  <= '1;
                         rsTable[i].rs1_data <= forward_a.data;
                     end
                     
-                    if (rsTable[i].instruction.rs2 == forward_a.reg_addr) begin
+                    if (rsTable[i].instruction.rs2 == forward_a.reg_addr && forward_a.reg_addr != 0) begin
                         rsTable[i].rs2_rdy  <= '1;
                         rsTable[i].rs2_data <= forward_a.data;
                     end
                 end
                 
                 if (forward_b.valid) begin
-                    if (rsTable[i].instruction.rs1 == forward_b.reg_addr) begin
+                    if (rsTable[i].instruction.rs1 == forward_b.reg_addr && forward_b.reg_addr != 0) begin
                         rsTable[i].rs1_rdy  <= '1;
                         rsTable[i].rs1_data <= forward_b.data;
                     end
                     
-                    if (rsTable[i].instruction.rs2 == forward_b.reg_addr) begin
+                    if (rsTable[i].instruction.rs2 == forward_b.reg_addr && forward_b.reg_addr != 0) begin
                         rsTable[i].rs2_rdy  <= '1;
                         rsTable[i].rs2_data <= forward_b.data;
                     end
                 end
                 
                 if (forward_c.valid) begin
-                    if (rsTable[i].instruction.rs1 == forward_c.reg_addr) begin
+                    if (rsTable[i].instruction.rs1 == forward_c.reg_addr && forward_c.reg_addr != 0) begin
                         rsTable[i].rs1_rdy  <= '1;
                         rsTable[i].rs1_data <= forward_c.data;
                     end
                     
-                    if (rsTable[i].instruction.rs2 == forward_c.reg_addr) begin
+                    if (rsTable[i].instruction.rs2 == forward_c.reg_addr && forward_c.reg_addr != 0) begin
                         rsTable[i].rs2_rdy  <= '1;
                         rsTable[i].rs2_data <= forward_c.data;
+                    end
+                end
+                
+                if (forward_d.valid) begin
+                    if (rsTable[i].instruction.rs1 == forward_d.reg_addr && forward_d.reg_addr != 0) begin
+                        rsTable[i].rs1_rdy  <= '1;
+                        rsTable[i].rs1_data <= forward_d.data;
+                    end
+                    
+                    if (rsTable[i].instruction.rs2 == forward_d.reg_addr && forward_d.reg_addr != 0) begin
+                        rsTable[i].rs2_rdy  <= '1;
+                        rsTable[i].rs2_data <= forward_d.data;
+                    end
+                end 
+                
+                if (forward_e.valid) begin
+                    if (rsTable[i].instruction.rs1 == forward_e.reg_addr && forward_e.reg_addr != 0) begin
+                        rsTable[i].rs1_rdy  <= '1;
+                        rsTable[i].rs1_data <= forward_e.data;
+                    end
+                    
+                    if (rsTable[i].instruction.rs2 == forward_e.reg_addr && forward_e.reg_addr != 0) begin
+                        rsTable[i].rs2_rdy  <= '1;
+                        rsTable[i].rs2_data <= forward_e.data;
                     end
                 end
                 
@@ -147,7 +173,7 @@ always_ff @(posedge clk) begin
                     rsTable[i].instruction.control.RegWrite <= '0;      
                 end
                 
-                if (issue[2] == i) begin
+                if (issue[2] == i && fuRdy.mem) begin
                     rsTable[i].valid    <= '0;
                     rsTable[i].rs1_rdy  <= '0;
                     rsTable[i].rs2_rdy  <= '0;

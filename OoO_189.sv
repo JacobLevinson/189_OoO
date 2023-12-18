@@ -53,32 +53,34 @@ regRespStruct reg_response_b;
 forwardingStruct forward_a;
 forwardingStruct forward_b;
 forwardingStruct forward_c;
+forwardingStruct forward_d;
+forwardingStruct forward_e;
 
 rsEntry rsLine_a; // Wire to RS
 rsEntry rsLine_b; // Wire to RS
 robDispatchStruct robDispatch_a; // Wire to ROB
 robDispatchStruct robDispatch_b; // Wire to ROB
-dispatch DI_STAGE(.clk, .reset, .dispatch_reg_a, .dispatch_reg_b, .forward_a, .forward_b, .forward_c, .reg_request_a, .reg_request_b, .reg_response_a, .reg_response_b,
-                  .rsLine_a, .rsLine_b, .robDispatch_a, .robDispatch_b);
+dispatch DI_STAGE(.clk, .reset, .dispatch_reg_a, .dispatch_reg_b, .forward_a, .forward_b, .forward_c, .forward_d, .forward_e, 
+                  .reg_request_a, .reg_request_b, .reg_response_a, .reg_response_b, .rsLine_a, .rsLine_b, .robDispatch_a, .robDispatch_b);
 
 rsIssue issue0;
 rsIssue issue1;
 rsIssue issue2;
-reservationStation RS_STAGE(.clk, .reset, .rsLine_a, .rsLine_b, .forward_a, .forward_b, .forward_c, .issue0, .issue1, .issue2);
+reservationStation RS_STAGE(.clk, .reset, .rsLine_a, .rsLine_b, .forward_a, .forward_b, .forward_c, .forward_d, .forward_e, .issue0, .issue1, .issue2);
 
 completeStruct complete0;
 completeStruct complete1;
 completeStruct complete2;
-fus IS_STAGE(.clk, .issue0, .issue1, .complete0, .complete1, .issue2, .request(memRequest_c), .response(memResponse_c), .complete2);
+fus IS_STAGE(.clk, .reset, .issue0, .issue1, .complete0, .complete1, .issue2, .request(memRequest_c), .response(memResponse_c), .complete2);
 
 robEntryStruct retire_instr_a;
 robEntryStruct retire_instr_b;
 complete_rob C_STAGE(.clk, .reset, .complete0, .complete1, .complete2, .robDispatch_a, .robDispatch_b, 
                      .forward_a, .forward_b, .forward_c, .retire_instr_a, .retire_instr_b);
 
-retire RET_STAGE (.clk, .retire_instr_a, .retire_instr_b, .regReqest_a(reg_request_c), .regReqest_b(reg_request_d), .memRequest_a, .memRequest_b, .freeReg_a, .freeReg_b);
+retire RET_STAGE (.clk, .retire_instr_a, .retire_instr_b, .regReqest_a(reg_request_c), .regReqest_b(reg_request_d), .memRequest_a, .memRequest_b, .memResponse_a, .memResponse_b, .forward_a(forward_d), .forward_b(forward_e), .freeReg_a, .freeReg_b);
 
-regReqStruct reg_request_c; // Request to regile
+regReqStruct reg_request_c; // Request to regfile
 regReqStruct reg_request_d;
 regRespStruct reg_response_c; // Response from regfile
 regRespStruct reg_response_d;

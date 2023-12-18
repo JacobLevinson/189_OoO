@@ -15,7 +15,7 @@ initial begin // Simulation construct: Read data from file into ROM
 		irom[i] = '0;
 	end
 	
-	$readmemh("r-test-hex.txt", irom); // REPLACE WITH INSTRUCTION FILE FOR SIMULATION
+	$readmemh("evaluation-hex.txt", irom); // REPLACE WITH INSTRUCTION FILE FOR SIMULATION
 end
 
 always_ff @(posedge clk) begin

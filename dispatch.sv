@@ -9,6 +9,8 @@ input dispatchStruct dispatch_reg_b,
 input forwardingStruct forward_a,
 input forwardingStruct forward_b,
 input forwardingStruct forward_c,
+input forwardingStruct forward_d,
+input forwardingStruct forward_e,
 
 // These are wired to the regfile
 output regReqStruct reg_request_a, // Combinational
@@ -71,6 +73,18 @@ always_ff @(posedge clk) begin
             phy_reg_rdy[forward_c.reg_addr]      <= '1;
             forwarded_regs[forward_c.reg_addr]   <= forward_c.data;
             forward_valid[forward_c.reg_addr]    <= '1;
+        end
+        
+        if (forward_d.valid) begin
+            phy_reg_rdy[forward_d.reg_addr]      <= '1;
+            forwarded_regs[forward_d.reg_addr]   <= forward_d.data;
+            forward_valid[forward_d.reg_addr]    <= '1;
+        end
+        
+        if (forward_e.valid) begin
+            phy_reg_rdy[forward_e.reg_addr]      <= '1;
+            forwarded_regs[forward_e.reg_addr]   <= forward_e.data;
+            forward_valid[forward_e.reg_addr]    <= '1;
         end
     end
 end
@@ -144,7 +158,10 @@ always_comb begin // Wire to reservation station
         rsLine_a.valid          = 1'b1;
         rsLine_a.instruction    = dispatch_reg_a;
         
-        if (forward_valid[dispatch_reg_a.rs1]) begin
+        if (dispatch_reg_a.rs1 == '0) begin
+            rsLine_a.rs1_rdy    = '1;
+            rsLine_a.rs1_data   = '0;
+        end else if (forward_valid[dispatch_reg_a.rs1]) begin
             rsLine_a.rs1_rdy    = phy_reg_rdy[dispatch_reg_a.rs1];
             rsLine_a.rs1_data   = forwarded_regs[dispatch_reg_a.rs1];
         end else if (forward_a.valid && dispatch_reg_a.rs1 == forward_a.reg_addr) begin
@@ -156,12 +173,21 @@ always_comb begin // Wire to reservation station
         end else if (forward_c.valid && dispatch_reg_a.rs1 == forward_c.reg_addr) begin
             rsLine_a.rs1_rdy    = '1;
             rsLine_a.rs1_data   = forward_c.data;
+        end else if (forward_d.valid && dispatch_reg_a.rs1 == forward_d.reg_addr) begin
+            rsLine_a.rs1_rdy    = '1;
+            rsLine_a.rs1_data   = forward_d.data;
+        end else if (forward_e.valid && dispatch_reg_a.rs1 == forward_e.reg_addr) begin
+            rsLine_a.rs1_rdy    = '1;
+            rsLine_a.rs1_data   = forward_e.data;
         end else begin     
             rsLine_a.rs1_rdy    = phy_reg_rdy[dispatch_reg_a.rs1];
             rsLine_a.rs1_data   = reg_response_a.rs1_data;
         end
         
-        if (forward_valid[dispatch_reg_a.rs2]) begin
+        if (dispatch_reg_a.rs2 == '0) begin
+            rsLine_a.rs2_rdy    = '1;
+            rsLine_a.rs2_data   = '0;
+        end else if (forward_valid[dispatch_reg_a.rs2]) begin
             rsLine_a.rs2_rdy    = rsLine_a.instruction.control.ALUSrc ? 1'b1 : phy_reg_rdy[dispatch_reg_a.rs2];
             rsLine_a.rs2_data   = forwarded_regs[dispatch_reg_a.rs2];
         end else if (forward_a.valid && dispatch_reg_a.rs2 == forward_a.reg_addr) begin
@@ -173,8 +199,14 @@ always_comb begin // Wire to reservation station
         end else if (forward_c.valid && dispatch_reg_a.rs2 == forward_c.reg_addr) begin
             rsLine_a.rs2_rdy    = '1;
             rsLine_a.rs2_data   = forward_c.data;
+        end else if (forward_d.valid && dispatch_reg_a.rs2 == forward_d.reg_addr) begin
+            rsLine_a.rs2_rdy    = '1;
+            rsLine_a.rs2_data   = forward_d.data;
+        end else if (forward_e.valid && dispatch_reg_a.rs2 == forward_e.reg_addr) begin
+            rsLine_a.rs2_rdy    = '1;
+            rsLine_a.rs2_data   = forward_e.data;
         end else begin     
-            rsLine_a.rs2_rdy    = rsLine_b.instruction.control.ALUSrc ? 1'b1 : phy_reg_rdy[dispatch_reg_a.rs2];
+            rsLine_a.rs2_rdy    = (dispatch_reg_a.control.ALUSrc && !dispatch_reg_a.control.MemWrite) ? 1'b1 : phy_reg_rdy[dispatch_reg_a.rs2];
             rsLine_a.rs2_data   = reg_response_a.rs1_data;
         end
         
@@ -206,7 +238,10 @@ always_comb begin // Wire to reservation station
         rsLine_b.valid          = 1'b1;
         rsLine_b.instruction    = dispatch_reg_b;
         
-        if (forward_valid[dispatch_reg_b.rs1]) begin // If stored in the forwarding buffer
+        if (dispatch_reg_b.rs1 == '0) begin
+            rsLine_b.rs1_rdy    = '1;
+            rsLine_b.rs1_data   = '0;
+        end else if (forward_valid[dispatch_reg_b.rs1]) begin // If stored in the forwarding buffer
             rsLine_b.rs1_rdy    = (dispatch_reg_b.rs1 != dispatch_reg_a.rd) ? phy_reg_rdy[dispatch_reg_b.rs1] : '0;
             rsLine_b.rs1_data   = forwarded_regs[dispatch_reg_b.rs1];
         end else if (forward_a.valid && dispatch_reg_b.rs1 == forward_a.reg_addr) begin // Just forwarded this cycle
@@ -218,12 +253,21 @@ always_comb begin // Wire to reservation station
         end else if (forward_c.valid && dispatch_reg_b.rs1 == forward_c.reg_addr) begin
             rsLine_b.rs1_rdy    = '1;
             rsLine_b.rs1_data   = forward_c.data;
+        end else if (forward_d.valid && dispatch_reg_b.rs1 == forward_d.reg_addr) begin
+            rsLine_b.rs1_rdy    = '1;
+            rsLine_b.rs1_data   = forward_d.data;
+        end else if (forward_e.valid && dispatch_reg_b.rs1 == forward_e.reg_addr) begin
+            rsLine_b.rs1_rdy    = '1;
+            rsLine_b.rs1_data   = forward_e.data;        
         end else begin     
             rsLine_b.rs1_rdy    = (dispatch_reg_b.rs1 != dispatch_reg_a.rd) ? phy_reg_rdy[dispatch_reg_b.rs1] : '0;
             rsLine_b.rs1_data   = reg_response_b.rs1_data;
         end
         
-        if (forward_valid[dispatch_reg_b.rs2]) begin // If stored in the forwarding buffer
+        if (dispatch_reg_b.rs2 == '0) begin
+            rsLine_b.rs2_rdy    = '1;
+            rsLine_b.rs2_data   = '0;
+        end else if (forward_valid[dispatch_reg_b.rs2]) begin // If stored in the forwarding buffer
             rsLine_b.rs2_rdy    = rsLine_b.instruction.control.ALUSrc ? 1'b1 : (dispatch_reg_b.rs2 != dispatch_reg_a.rd) ? phy_reg_rdy[dispatch_reg_b.rs2] : '0;
             rsLine_b.rs2_data   = forwarded_regs[dispatch_reg_b.rs2];
         end else if (forward_a.valid && dispatch_reg_b.rs2 == forward_a.reg_addr) begin // Just forwarded this cycle
@@ -235,8 +279,14 @@ always_comb begin // Wire to reservation station
         end else if (forward_c.valid && dispatch_reg_b.rs2 == forward_c.reg_addr) begin
             rsLine_b.rs2_rdy    = '1;
             rsLine_b.rs2_data   = forward_c.data;
+        end else if (forward_d.valid && dispatch_reg_b.rs2 == forward_d.reg_addr) begin
+            rsLine_b.rs2_rdy    = '1;
+            rsLine_b.rs2_data   = forward_d.data;
+        end else if (forward_e.valid && dispatch_reg_b.rs2 == forward_e.reg_addr) begin
+            rsLine_b.rs2_rdy    = '1;
+            rsLine_b.rs2_data   = forward_e.data;                        
         end else begin     
-            rsLine_b.rs2_rdy    = rsLine_b.instruction.control.ALUSrc ? 1'b1 : (dispatch_reg_b.rs2 != dispatch_reg_a.rd) ? phy_reg_rdy[dispatch_reg_b.rs2] : '0;
+            rsLine_b.rs2_rdy    = (dispatch_reg_b.control.ALUSrc  && !dispatch_reg_b.control.MemWrite) ? 1'b1 : (dispatch_reg_b.rs2 != dispatch_reg_a.rd) ? phy_reg_rdy[dispatch_reg_b.rs2] : '0;
             rsLine_b.rs2_data   = reg_response_b.rs1_data;
         end
         
@@ -293,7 +343,7 @@ always_comb begin // Wire to reorder buffer
         robDispatch_b.rd        = dispatch_reg_b.rd;
         robDispatch_b.rd_old    = dispatch_reg_b.rd_old;
         robDispatch_b.robNum    = rs_rob_ptr + 1'b1;
-        robDispatch_b.control   = dispatch_reg_a.control;
+        robDispatch_b.control   = dispatch_reg_b.control;
     end else begin
         robDispatch_b.pc        = '0;
         robDispatch_b.valid     = '0;

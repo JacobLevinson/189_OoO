@@ -2,6 +2,7 @@
 
 module fus import typedefs::*; (
 input logic clk,
+input logic reset,
 
 input rsIssue issue0,
 input rsIssue issue1,
@@ -96,7 +97,7 @@ always_ff @ (posedge clk) begin // Output the memory response as registers
     complete2.pc        <= issue2.pc;
     complete2.rd        <= issue2.rd;
     complete2.rd_old    <= issue2.rd_old;
-    complete2.result    <= response.rd_data; // This is what we just read
+    complete2.result    <= aluOut2.result; // This is what we just read
     complete2.wr_data   <= '0;
     complete2.control   <= issue2.control;
 end
